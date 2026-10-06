@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1714">
+<title>Morning HRV</title>
+<style>
+/* Layout: one phone-sized column; three screens (start, measuring, result) swap in place. */
+:root{
+  --bg:#f2f5f3; --surface:#ffffff; --fg:#14201b; --muted:#5a6b64; --line:#d6dfdb;
+  --accent:#d63a33; --accent-soft:#fbe2e0; --good:#1d7a52; --good-soft:#dcf2e7;
+  --warn:#a86a00; --warn-soft:#fbefd2; --bad:#b4271f; --bad-soft:#f9dcd9; --wave:#d63a33;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1714; --surface:#17211d; --fg:#e7eeea; --muted:#94a69e; --line:#2a3732;
+  --accent:#ff6a5f; --accent-soft:#3b1c1a; --good:#4cc68f; --good-soft:#163428;
+  --warn:#f0b445; --warn-soft:#3a2d12; --bad:#ff6a5f; --bad-soft:#3b1c1a; --wave:#ff6a5f; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.5}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+h1{font-size:1.5rem;margin:0;letter-spacing:-.01em}
+.who{color:var(--muted);font-size:.95rem;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}
+.label{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.seg{display:flex;gap:8px}
+.seg button{flex:1}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:12px 14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;font-size:1.05rem;padding:16px}
+button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.phase{font-size:1.25rem;font-weight:650}
+.sub{color:var(--muted)}
+.timer{font-family:var(--mono);font-size:2.6rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+canvas{width:100%;display:block;border-radius:10px;background:var(--bg)}
+.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chk{border-radius:10px;padding:8px;text-align:center;font-size:.85rem;background:var(--bad-soft);color:var(--bad);font-weight:600}
+.chk.ok{background:var(--good-soft);color:var(--good)}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:var(--bg);border-radius:12px;padding:12px}
+.metric .v{font-size:2.2rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.metric .u{font-size:.9rem;color:var(--muted);font-weight:500}
+.badge{display:inline-block;border-radius:999px;padding:4px 12px;font-weight:650;font-size:.9rem}
+.badge.good{background:var(--good-soft);color:var(--good)}
+.badge.ok{background:var(--warn-soft);color:var(--warn)}
+.badge.poor{background:var(--bad-soft);color:var(--bad)}
+.note{font-size:.88rem;color:var(--muted)}
+.warnbox{background:var(--warn-soft);color:var(--fg);border-radius:10px;padding:10px 12px;font-size:.92rem}
+.debug{font-family:var(--mono);font-size:.72rem;color:var(--muted);word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+.tablewrap{overflow-x:auto}
+details summary{cursor:pointer;color:var(--muted)}
+video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Morning HRV</h1>
+    <div class="who" id="who"></div>
+  </header>
+
+  <!-- START SCREEN -->
+  <section id="scrStart" class="stack">
+    <div class="card stack">
+      <div class="label">Before you start</div>
+      <ol class="steps">
+        <li>Do it <b>right after waking</b> and using the toilet. Same time every day.</li>
+        <li><b>Lie on your back</b> and rest quietly for 1 minute.</li>
+        <li>Cover the <b>back camera and the flash</b> with your index fingertip. Touch lightly, do not press.</li>
+        <li>Keep your hand resting on your chest or the bed. <b>Stay still</b> and breathe normally.</li>
+      </ol>
+    </div>
+    <div class="card stack">
+      <div class="label">Recording length</div>
+      <div class="seg" id="durSeg">
+        <button data-d="60">1 min</button>
+        <button data-d="120" class="on">2 min</button>
+        <button data-d="180">3 min</button>
+      </div>
+      <label class="note"><input type="checkbox" id="lockExp" checked> Lock camera exposure (recommended)</label>
+    </div>
+    <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
+    <div class="warnbox" id="notSupported" hidden></div>
+    <button class="primary" id="btnStart">Start measurement</button>
+    <details class="card" id="histBox">
+      <summary>My recent results on this phone</summary>
+      <div class="tablewrap"><table id="histTable"></table></div>
+    </details>
+  </section>
+
+  <!-- MEASURING SCREEN -->
+  <section id="scrMeasure" class="stack" hidden>
+    <div class="card stack">
+      <div class="row">
+        <div>
+          <div class="phase" id="phase">Starting camera...</div>
+          <div class="sub" id="phaseSub"></div>
+        </div>
+        <div class="timer" id="timer"></div>
+      </div>
+      <canvas id="wave" height="150"></canvas>
+      <div class="checks">
+        <div class="chk" id="cFinger">Finger</div>
+        <div class="chk" id="cSignal">Pulse</div>
+        <div class="chk" id="cStill">Still</div>
+      </div>
+      <div class="row"><span class="sub">Heart rate now</span><span class="phase" id="liveHr">--</span></div>
+    </div>
+    <div class="warnbox" id="torchWarn" hidden>The flash could not be switched on. Measure near a bright light, or open this page in Chrome.</div>
+    <button id="btnStop">Cancel</button>
+    <div class="debug" id="debug"></div>
+  </section>
+
+  <!-- RESULT SCREEN -->
+  <section id="scrResult" class="stack" hidden>
+    <div class="card stack">
+      <div class="row"><div class="label">Result</div><span class="badge" id="qBadge"></span></div>
+      <div class="big">
+        <div class="metric"><div class="label">Resting HR</div><div class="v" id="rHr">--</div><div class="u">bpm</div></div>
+        <div class="metric"><div class="label">RMSSD</div><div class="v" id="rRm">--</div><div class="u">ms</div></div>
+      </div>
+      <div class="note" id="rDetail"></div>
+      <canvas id="tacho" height="140"></canvas>
+      <div class="note">Each dot is one beat-to-beat interval. Grey dots were rejected as noise.</div>
+    </div>
+    <div class="warnbox" id="poorMsg" hidden>The signal was not clean enough. Please measure again: lie still, touch the camera lightly, and keep your hand relaxed.</div>
+    <button class="primary" id="btnSend" hidden>Continue to wellness form</button>
+    <button id="btnAgain">Measure again</button>
+    <button id="btnSendAnyway" hidden>Send anyway</button>
+    <details class="card">
+      <summary>Data for checking (coach / physiologist)</summary>
+      <div class="stack" style="margin-top:10px">
+        <button id="btnCopy">Copy result</button>
+        <button id="btnCsv">Download beat intervals (CSV)</button>
+        <div class="debug" id="rDebug"></div>
+      </div>
+    </details>
+  </section>
+  <video id="video" playsinline muted></video>
+</div>
+
+<script>
+// ENGINE START
+/* PPG analysis engine: irregular camera frames -> uniform signal -> beats -> clean intervals -> HR, RMSSD. */
+const PPG = (() => {
+  const FS = 200;            // resampling rate (Hz)
+  const HP = 0.5, LP = 6.0;  // band-pass (Hz)
+
+  function median(a) {
+    if (!a.length) return NaN;
+    const s = Array.from(a).sort((x, y) => x - y), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  // Natural cubic spline through (t, y), evaluated on a uniform grid starting at t[0].
+  function resample(t, y, fs) {
+    const n = t.length;
+    const h = new Float64Array(n - 1);
+    for (let i = 0; i < n - 1; i++) h[i] = t[i + 1] - t[i];
+    const M = new Float64Array(n), cp = new Float64Array(n), dp = new Float64Array(n);
+    for (let i = 1; i < n - 1; i++) {
+      const a = h[i - 1], b = 2 * (h[i - 1] + h[i]), c = h[i];
+      const d = 6 * ((y[i + 1] - y[i]) / h[i] - (y[i] - y[i - 1]) / h[i - 1]);
+      const den = b - a * cp[i - 1];
+      cp[i] = c / den;
+      dp[i] = (d - a * dp[i - 1]) / den;
+    }
+    for (let i = n - 2; i >= 1; i--) M[i] = dp[i] - cp[i] * M[i + 1];
+    const N = Math.floor((t[n - 1] - t[0]) * fs) + 1;
+    const out = new Float64Array(N);
+    let j = 0;
+    for (let k = 0; k < N; k++) {
+      const x = t[0] + k / fs;
+      while (j < n - 2 && x > t[j + 1]) j++;
+      const hh = h[j], A = (t[j + 1] - x) / hh, B = (x - t[j]) / hh;
+      out[k] = A * y[j] + B * y[j + 1] + ((A * A * A - A) * M[j] + (B * B * B - B) * M[j + 1]) * hh * hh / 6;
+    }
+    return out;
+  }
+
+  function biquad(type, f0, fs) {
+    const w = 2 * Math.PI * f0 / fs, c = Math.cos(w), al = Math.sin(w) / (2 * Math.SQRT1_2);
+    const a0 = 1 + al;
+    let b;
+    if (type === 'lp') b = [(1 - c) / 2, 1 - c, (1 - c) / 2];
+    else b = [(1 + c) / 2, -(1 + c), (1 + c) / 2];
+    return { b0: b[0] / a0, b1: b[1] / a0, b2: b[2] / a0, a1: -2 * c / a0, a2: (1 - al) / a0 };
+  }
+  function run(co, x) {
+    const y = new Float64Array(x.length);
+    let x1 = x[0], x2 = x[0], y1 = x[0] * (co.b0 + co.b1 + co.b2) / (1 + co.a1 + co.a2), y2 = y1;
+    if (!isFinite(y1)) { y1 = 0; y2 = 0; }
+    for (let i = 0; i < x.length; i++) {
+      const v = co.b0 * x[i] + co.b1 * x1 + co.b2 * x2 - co.a1 * y1 - co.a2 * y2;
+      x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v;
+    }
+    return y;
+  }
+  function reverse(x) { const y = new Float64Array(x.length); for (let i = 0; i < x.length; i++) y[i] = x[x.length - 1 - i]; return y; }
+  // Zero-phase filtering with mirrored padding (no peak shift).
+  function filtfilt(co, x) {
+    const n = x.length, L = Math.min(n - 1, 2 * FS);
+    const p = new Float64Array(n + 2 * L);
+    for (let i = 0; i < L; i++) { p[i] = 2 * x[0] - x[L - i]; p[n + L + i] = 2 * x[n - 1] - x[n - 2 - i]; }
+    p.set(x, L);
+    const y = reverse(run(co, reverse(run(co, p))));
+    return y.subarray(L, L + n);
+  }
+
+  function bandpass(x) { return filtfilt(biquad('lp', LP, FS), filtfilt(biquad('hp', HP, FS), x)); }
+
+  // Dominant beat period (samples) from autocorrelation, 30-180 bpm.
+  function period(y) {
+    const n = y.length, lo = Math.round(0.33 * FS), hi = Math.min(Math.round(2.0 * FS), n >> 1);
+    let r0 = 0; for (let i = 0; i < n; i++) r0 += y[i] * y[i];
+    if (r0 === 0 || hi <= lo) return 0;
+    const r = new Float64Array(hi + 2);
+    for (let lag = lo - 1; lag <= hi + 1; lag++) {
+      let s = 0; for (let i = 0; i + lag < n; i++) s += y[i] * y[i + lag];
+      r[lag] = s / (n - lag) * n / r0;
+    }
+    const peaks = [];
+    for (let lag = lo; lag <= hi; lag++) if (r[lag] > r[lag - 1] && r[lag] >= r[lag + 1] && r[lag] > 0.2) peaks.push(lag);
+    if (!peaks.length) return 0;
+    let best = peaks.reduce((a, b) => r[b] > r[a] ? b : a);
+    // prefer the shortest lag that is nearly as strong (avoid picking 2 beats)
+    for (const p of peaks) { if (p < best && r[p] > 0.75 * r[best] && Math.abs(best / p - Math.round(best / p)) < 0.15) { best = p; break; } }
+    return best;
+  }
+
+  // Beat times (s): steepest upstroke before each systolic peak, refined between samples.
+  function beats(y, T) {
+    const n = y.length, half = Math.max(1, Math.round(0.35 * T)), out = [];
+    for (let i = 1; i < n - 1; i++) {
+      if (!(y[i] > y[i - 1] && y[i] >= y[i + 1] && y[i] > 0)) continue;
+      let isMax = true;
+      for (let j = Math.max(0, i - half); j <= Math.min(n - 1, i + half); j++) if (y[j] > y[i]) { isMax = false; break; }
+      if (!isMax) continue;
+      if (out.length && i - out[out.length - 1].p < 0.5 * T) continue;
+      const s = Math.max(2, i - Math.round(0.45 * T));
+      let k = -1, dmax = -Infinity, trough = Infinity;
+      for (let m = s; m < i; m++) {
+        const d = y[m + 1] - y[m - 1];
+        if (d > dmax) { dmax = d; k = m; }
+        if (y[m] < trough) trough = y[m];
+      }
+      if (k < 2 || k >= n - 2) continue;
+      const d0 = y[k] - y[k - 2], d2 = y[k + 2] - y[k], den = d0 - 2 * dmax + d2;
+      const off = den !== 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (d0 - d2) / den)) : 0;
+      out.push({ p: i, t: (k + off) / FS, amp: y[i] - trough });
+    }
+    return out;
+  }
+
+  // Hampel filter on raw frames: replaces single-frame spikes (motion, light flicker) before resampling.
+  function despike(v) {
+    const n = v.length, out = v.slice(), w = 3;
+    for (let i = 0; i < n; i++) {
+      const win = [];
+      for (let j = Math.max(0, i - w); j <= Math.min(n - 1, i + w); j++) win.push(v[j]);
+      const med = median(win), mad = median(win.map(x => Math.abs(x - med))) * 1.4826;
+      if (mad > 0 && Math.abs(v[i] - med) > 4 * mad) out[i] = med;
+    }
+    return out;
+  }
+
+  // Template matching: aligns every beat to the average pulse shape using the whole waveform,
+  // which gives far less timing noise than any single point. Also scores how pulse-like each beat is.
+  function refine(y, bt, T) {
+    const pre = Math.round(0.25 * T), post = Math.round(0.45 * T), L = pre + post + 1;
+    const maxShift = Math.round(0.08 * FS);
+    const seg = (c) => {
+      const s = new Float64Array(L);
+      for (let k = 0; k < L; k++) { const idx = c - pre + k; s[k] = idx >= 0 && idx < y.length ? y[idx] : 0; }
+      let m = 0; for (const x of s) m += x; m /= L;
+      let e = 0; for (let k = 0; k < L; k++) { s[k] -= m; e += s[k] * s[k]; }
+      e = Math.sqrt(e) || 1; for (let k = 0; k < L; k++) s[k] /= e;
+      return s;
+    };
+    for (let pass = 0; pass < 2; pass++) {
+      const tpl = new Float64Array(L);
+      let cnt = 0;
+      for (const b of bt) { if (b.corr !== undefined && b.corr < 0.8) continue; const s = seg(Math.round(b.t * FS)); for (let k = 0; k < L; k++) tpl[k] += s[k]; cnt++; }
+      if (cnt < 5) return bt;
+      let e = 0; for (const x of tpl) e += x * x; e = Math.sqrt(e) || 1;
+      for (let k = 0; k < L; k++) tpl[k] /= e;
+      for (const b of bt) {
+        const c0 = Math.round(b.t * FS);
+        const cc = [];
+        for (let sh = -maxShift; sh <= maxShift; sh++) {
+          const s = seg(c0 + sh); let r = 0; for (let k = 0; k < L; k++) r += s[k] * tpl[k]; cc.push(r);
+        }
+        let k = 0; for (let i = 1; i < cc.length; i++) if (cc[i] > cc[k]) k = i;
+        let off = 0;
+        if (k > 0 && k < cc.length - 1) { const den = cc[k - 1] - 2 * cc[k] + cc[k + 1]; if (den < 0) off = 0.5 * (cc[k - 1] - cc[k + 1]) / den; }
+        b.t = (c0 + (k - maxShift) + off) / FS;
+        b.corr = cc[k];
+      }
+    }
+    return bt;
+  }
+
+  // Intervals with artifact rejection: physiological range, amplitude, pulse shape, and >20% from local median.
+  function intervals(bt) {
+    const amps = bt.map(b => b.amp), ampMed = median(amps);
+    const list = [];
+    for (let i = 0; i + 1 < bt.length; i++) {
+      const ibi = (bt[i + 1].t - bt[i].t) * 1000;
+      let ok = ibi >= 300 && ibi <= 2000;
+      for (const b of [bt[i], bt[i + 1]]) {
+        if (b.amp < 0.3 * ampMed || b.amp > 3 * ampMed) ok = false;
+        if (b.corr !== undefined && b.corr < 0.85) ok = false;
+      }
+      list.push({ t: bt[i + 1].t, ibi: ibi, valid: ok });
+    }
+    for (let i = 0; i < list.length; i++) {
+      const nb = [];
+      for (let j = Math.max(0, i - 5); j <= Math.min(list.length - 1, i + 5); j++)
+        if (j !== i && list[j].ibi >= 300 && list[j].ibi <= 2000) nb.push(list[j].ibi);
+      const med = median(nb);
+      if (isFinite(med) && Math.abs(list[i].ibi - med) > 0.2 * med) list[i].valid = false;
+    }
+    return list;
+  }
+
+  function metrics(list) {
+    const v = list.filter(x => x.valid).map(x => x.ibi);
+    const diffs = [];
+    for (let i = 0; i + 1 < list.length; i++) if (list[i].valid && list[i + 1].valid) diffs.push(list[i + 1].ibi - list[i].ibi);
+    if (v.length < 10 || diffs.length < 8) return null;
+    const mean = v.reduce((s, x) => s + x, 0) / v.length;
+    const rmssd = Math.sqrt(diffs.reduce((s, d) => s + d * d, 0) / diffs.length);
+    const sdnn = Math.sqrt(v.reduce((s, x) => s + (x - mean) * (x - mean), 0) / (v.length - 1));
+    return { hr: 60000 / mean, meanIbi: mean, rmssd: rmssd, lnRmssd: Math.log(rmssd), sdnn: sdnn, valid: v.length, pairs: diffs.length };
+  }
+
+  // Main entry. tMs: frame timestamps (ms), x: mean brightness per frame (one colour channel).
+  function analyze(tMs, x) {
+    const t = [], v = [];
+    for (let i = 0; i < tMs.length; i++) {
+      if (!isFinite(tMs[i]) || !isFinite(x[i])) continue;
+      if (t.length && tMs[i] / 1000 <= t[t.length - 1] + 1e-4) continue;
+      t.push(tMs[i] / 1000); v.push(-x[i]); // invert: more blood = darker
+    }
+    if (t.length < 50) return { error: 'Too few camera frames' };
+    const dur = t[t.length - 1] - t[0];
+    if (dur < 8) return { error: 'Recording too short' };
+    const y = bandpass(resample(t, despike(v), FS));
+    const T = period(y);
+    if (!T) return { error: 'No clear pulse found' };
+    const bt = refine(y, beats(y, T), T);
+    const list = intervals(bt);
+    const m = metrics(list);
+    const fps = (t.length - 1) / dur;
+    const validFrac = list.length ? list.filter(z => z.valid).length / list.length : 0;
+    if (!m) return { error: 'Not enough clean beats', fps: fps, quality: validFrac, intervals: list, duration: dur };
+    const shape = median(bt.filter(b => b.corr !== undefined).map(b => b.corr));
+    return Object.assign(m, { fps: fps, duration: dur, quality: validFrac, total: list.length, intervals: list, periodS: T / FS, shape: shape });
+  }
+
+  function grade(r) {
+    if (!r || r.error) return 'poor';
+    const expected = r.duration / (r.meanIbi / 1000);
+    const coverage = r.valid / Math.max(1, expected);
+    if (r.quality >= 0.95 && coverage >= 0.85) return 'good';
+    if (r.quality >= 0.85 && coverage >= 0.7) return 'ok';
+    return 'poor';
+  }
+
+  return { analyze: analyze, grade: grade, median: median, bandpass: bandpass, resample: resample, FS: FS };
+})();
+// ENGINE END
+</script>
+
+<script>
+/* ---------------- App ---------------- */
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const FORM_URL = params.get('f') || '';
+const NAME = params.get('n') || '';
+const SETTLE_S = 15;
+
+let durS = 120, stream = null, track = null, running = false, wakeLock = null;
+let frames = null, phase = 'idle', phaseStart = 0, fingerLostAt = 0, lostTotal = 0, recordStartIdx = 0;
+let lastMediaTime = -1, lastResult = null, liveTimer = null, moveEvents = 0, prevR = null;
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+canvas.width = 40; canvas.height = 30;
+
+$('who').textContent = NAME;
+if (!FORM_URL) $('noSend').hidden = false;
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+  $('notSupported').hidden = false;
+  $('notSupported').textContent = 'This browser cannot use the camera here. Open the page in Chrome on an Android phone, using an https:// link.';
+  $('btnStart').disabled = true;
+}
+
+document.querySelectorAll('#durSeg button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#durSeg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); durS = Number(b.dataset.d);
+}));
+
+function show(id) { ['scrStart', 'scrMeasure', 'scrResult'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+function fmt(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function setChk(id, ok) { $(id).classList.toggle('ok', !!ok); }
+
+async function start() {
+  show('scrMeasure');
+  $('phase').textContent = 'Starting camera...'; $('phaseSub').textContent = ''; $('timer').textContent = '';
+  $('torchWarn').hidden = true; $('liveHr').textContent = '--';
+  frames = { t: [], r: [], g: [], b: [] };
+  phase = 'finger'; phaseStart = performance.now(); lostTotal = 0; fingerLostAt = 0; moveEvents = 0; prevR = null; lastMediaTime = -1;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
+      facingMode: { ideal: 'environment' }, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60, max: 60 } } });
+  } catch (e) {
+    $('phase').textContent = 'Camera not available';
+    $('phaseSub').textContent = 'Allow camera access for this page, then try again. (' + e.name + ')';
+    return;
+  }
+  track = stream.getVideoTracks()[0];
+  const video = $('video');
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+  running = true;
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* optional */ }
+  await torchOn();
+  setTimeout(torchOn, 700);
+  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onFrame);
+  else requestAnimationFrame(() => onFrame(performance.now(), null));
+  liveTimer = setInterval(liveUpdate, 1000);
+}
+
+async function torchOn() {
+  if (!track) return;
+  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  if (!caps.torch) { $('torchWarn').hidden = false; return; }
+  try { await track.applyConstraints({ advanced: [{ torch: true }] }); $('torchWarn').hidden = true; }
+  catch (e) { $('torchWarn').hidden = false; }
+}
+
+async function lockExposure() {
+  if (!$('lockExp').checked || !track || !track.getCapabilities) return;
+  const caps = track.getCapabilities(), s = track.getSettings();
+  const tries = [];
+  if (caps.exposureMode && caps.exposureMode.includes('manual') && s.exposureTime) tries.push({ exposureMode: 'manual', exposureTime: s.exposureTime });
+  if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('manual') && s.colorTemperature) tries.push({ whiteBalanceMode: 'manual', colorTemperature: s.colorTemperature });
+  if (caps.focusMode && caps.focusMode.includes('manual')) tries.push({ focusMode: 'manual' });
+  for (const c of tries) { try { await track.applyConstraints({ advanced: [{ torch: true }, c] }); } catch (e) { /* not supported */ } }
+}
+
+function onFrame(now, meta) {
+  if (!running) return;
+  const video = $('video');
+  let t = now;
+  if (meta) {
+    if (meta.mediaTime === lastMediaTime) { video.requestVideoFrameCallback(onFrame); return; }
+    lastMediaTime = meta.mediaTime;
+    t = meta.captureTime || (meta.mediaTime ? meta.mediaTime * 1000 : now);
+  }
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const d = ctx.getImageData(5, 4, 30, 22).data;
+  let r = 0, g = 0, b = 0, r2 = 0;
+  const n = d.length / 4;
+  for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; r2 += d[i] * d[i]; }
+  r /= n; g /= n; b /= n;
+  const rStd = Math.sqrt(Math.max(0, r2 / n - r * r));
+  frames.t.push(t); frames.r.push(r); frames.g.push(g); frames.b.push(b);
+  if (prevR !== null && Math.abs(r - prevR) > 6) moveEvents++;
+  prevR = r;
+  step(r, g, b, rStd);
+  drawWave();
+  if (meta) video.requestVideoFrameCallback(onFrame); else requestAnimationFrame(ts => onFrame(ts, null));
+}
+
+function fingerOn(r, g, b, rStd) { return r > 60 && r > 1.6 * g && r > 1.6 * b && rStd < 40; }
+
+function step(r, g, b, rStd) {
+  const now = performance.now();
+  const finger = fingerOn(r, g, b, rStd);
+  setChk('cFinger', finger);
+  const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
+  setChk('cStill', finger && recent);
+  $('debug').textContent = 'R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+    ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
+
+  if (phase === 'finger') {
+    $('phase').textContent = 'Place your finger';
+    $('phaseSub').textContent = 'Cover the back camera and flash lightly.';
+    $('timer').textContent = '';
+    if (finger) { if (!fingerLostAt) fingerLostAt = now; if (now - fingerLostAt > 1500) { phase = 'settle'; phaseStart = now; fingerLostAt = 0; lockExposure(); } }
+    else fingerLostAt = 0;
+  } else if (phase === 'settle') {
+    const left = SETTLE_S - (now - phaseStart) / 1000;
+    $('phase').textContent = 'Getting the signal ready';
+    $('phaseSub').textContent = 'Stay still. Recording starts by itself.';
+    $('timer').textContent = fmt(left);
+    if (!finger) { phase = 'finger'; fingerLostAt = 0; return; }
+    if (left <= 0) { phase = 'record'; phaseStart = now; recordStartIdx = frames.t.length; lostTotal = 0; moveEvents = 0; }
+  } else if (phase === 'record') {
+    const left = durS - (now - phaseStart) / 1000;
+    $('phase').textContent = 'Recording';
+    $('phaseSub').textContent = 'Stay still and breathe normally.';
+    $('timer').textContent = fmt(left);
+    if (!finger) { if (!fingerLostAt) fingerLostAt = now; }
+    else if (fingerLostAt) { lostTotal += now - fingerLostAt; fingerLostAt = 0; }
+    const lostNow = lostTotal + (fingerLostAt ? now - fingerLostAt : 0);
+    if (lostNow > 3000) { stop(); showError('Your finger moved off the camera. Please try again.'); return; }
+    if (left <= 0) finish();
+  }
+}
+
+function estFps() {
+  const t = frames.t, n = t.length;
+  if (n < 20) return 0;
+  return 19000 / (t[n - 1] - t[n - 20]);
+}
+
+function chooseChannel(from) {
+  const r = frames.r.slice(from), g = frames.g.slice(from);
+  const meanR = r.reduce((s, v) => s + v, 0) / Math.max(1, r.length);
+  return meanR > 245 ? g : r;
+}
+
+function liveUpdate() {
+  if (!running || phase === 'finger') { $('liveHr').textContent = '--'; setChk('cSignal', false); return; }
+  const n = frames.t.length;
+  let from = n - 1;
+  while (from > 0 && frames.t[n - 1] - frames.t[from] < 10000) from--;
+  const res = PPG.analyze(frames.t.slice(from), chooseChannel(from));
+  const ok = res && !res.error && res.quality >= 0.8;
+  setChk('cSignal', ok);
+  $('liveHr').textContent = res && !res.error ? Math.round(res.hr) + ' bpm' : '--';
+}
+
+function drawWave() {
+  const c = $('wave'), w = c.clientWidth;
+  if (c.width !== w * 2) { c.width = w * 2; c.height = 300; }
+  const g = c.getContext('2d'), W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  const t = frames.t, n = t.length;
+  if (n < 10) return;
+  const ch = frames.r[n - 1] > 245 ? frames.g : frames.r;
+  let from = n - 1;
+  while (from > 0 && t[n - 1] - t[from] < 5000) from--;
+  const ys = [];
+  for (let i = from; i < n; i++) {
+    let s = 0, k = 0;
+    for (let j = Math.max(0, i - 20); j <= Math.min(n - 1, i + 2); j++) { s += ch[j]; k++; }
+    ys.push(-(ch[i] - s / k));
+  }
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (hi - lo < 0.5) { hi = lo + 0.5; }
+  g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--wave').trim() || '#d63a33';
+  g.lineWidth = 4; g.lineJoin = 'round'; g.beginPath();
+  for (let i = 0; i < ys.length; i++) {
+    const x = (t[from + i] - (t[n - 1] - 5000)) / 5000 * W;
+    const y = H - 12 - (ys[i] - lo) / (hi - lo) * (H - 24);
+    if (i) g.lineTo(x, y); else g.moveTo(x, y);
+  }
+  g.stroke();
+}
+
+function stop() {
+  running = false;
+  clearInterval(liveTimer);
+  if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; track = null;
+  if (wakeLock) { try { wakeLock.release(); } catch (e) { } wakeLock = null; }
+}
+
+function showError(msg) {
+  show('scrResult');
+  lastResult = null;
+  $('qBadge').className = 'badge poor'; $('qBadge').textContent = 'Not saved';
+  $('rHr').textContent = '--'; $('rRm').textContent = '--';
+  $('rDetail').textContent = msg;
+  $('poorMsg').hidden = false; $('btnSend').hidden = true; $('btnSendAnyway').hidden = true;
+  $('rDebug').textContent = '';
+  drawTacho([]);
+}
+
+function finish() {
+  const tSlice = frames.t.slice(recordStartIdx);
+  const resR = PPG.analyze(tSlice, frames.r.slice(recordStartIdx));
+  const resG = PPG.analyze(tSlice, frames.g.slice(recordStartIdx));
+  stop();
+  const score = r => (!r || r.error) ? -1 : r.quality * 1000 + r.valid;
+  const res = score(resG) > score(resR) ? Object.assign(resG, { channel: 'green' }) : Object.assign(resR, { channel: 'red' });
+  if (res.error) { showError(res.error + '. Please try again.'); return; }
+  res.grade = PPG.grade(res);
+  res.when = new Date();
+  res.moves = moveEvents;
+  lastResult = res;
+  renderResult(res);
+  saveHistory(res);
+}
+
+function renderResult(res) {
+  show('scrResult');
+  const labels = { good: 'Good signal', ok: 'Acceptable', poor: 'Poor signal' };
+  $('qBadge').className = 'badge ' + res.grade; $('qBadge').textContent = labels[res.grade];
+  $('rHr').textContent = Math.round(res.hr);
+  $('rRm').textContent = res.rmssd.toFixed(1);
+  $('rDetail').textContent = 'ln RMSSD ' + res.lnRmssd.toFixed(2) + ' · ' + res.valid + ' of ' + res.total +
+    ' beats used (' + Math.round(res.quality * 100) + '%) · ' + Math.round(res.duration) + ' s';
+  $('rDebug').textContent = 'fps ' + res.fps.toFixed(1) + ' · channel ' + res.channel + ' · SDNN ' + res.sdnn.toFixed(1) +
+    ' ms · movements ' + res.moves + ' · period ' + res.periodS.toFixed(2) + ' s';
+  const poor = res.grade === 'poor';
+  $('poorMsg').hidden = !poor;
+  $('btnSend').hidden = !FORM_URL || poor;
+  $('btnSendAnyway').hidden = !FORM_URL || !poor;
+  drawTacho(res.intervals);
+}
+
+function drawTacho(list) {
+  const c = $('tacho'), w = c.clientWidth || 300;
+  c.width = w * 2; c.height = 280;
+  const g = c.getContext('2d'), W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  if (!list || !list.length) return;
+  const css = getComputedStyle(document.documentElement);
+  const v = list.map(x => x.ibi);
+  const lo = Math.min(...v), hi = Math.max(...v), span = Math.max(50, hi - lo);
+  const t0 = list[0].t, t1 = list[list.length - 1].t || t0 + 1;
+  g.font = '22px ' + css.getPropertyValue('--font');
+  g.fillStyle = css.getPropertyValue('--muted');
+  g.fillText(Math.round(hi) + ' ms', 8, 26);
+  g.fillText(Math.round(lo) + ' ms', 8, H - 10);
+  list.forEach(x => {
+    const px = 90 + (x.t - t0) / (t1 - t0 || 1) * (W - 110);
+    const py = H - 20 - (x.ibi - lo) / span * (H - 50);
+    g.fillStyle = x.valid ? css.getPropertyValue('--accent') : css.getPropertyValue('--muted');
+    g.globalAlpha = x.valid ? 1 : 0.5;
+    g.beginPath(); g.arc(px, py, 5, 0, Math.PI * 2); g.fill();
+  });
+  g.globalAlpha = 1;
+}
+
+function sendToForm() {
+  if (!lastResult || !FORM_URL) return;
+  const url = FORM_URL.replace('HRVRMSSD', lastResult.rmssd.toFixed(1)).replace('HRVRHR', String(Math.round(lastResult.hr)));
+  location.href = url;
+}
+
+function resultText(r) {
+  return 'Morning HRV ' + r.when.toLocaleString() + (NAME ? ' · ' + NAME : '') + '\nHR ' + Math.round(r.hr) + ' bpm, RMSSD ' +
+    r.rmssd.toFixed(1) + ' ms, ln RMSSD ' + r.lnRmssd.toFixed(2) + ', quality ' + Math.round(r.quality * 100) + '% (' + r.grade + '), ' +
+    r.valid + ' beats, ' + r.fps.toFixed(1) + ' fps';
+}
+
+function downloadCsv() {
+  if (!lastResult) return;
+  const rows = ['beat,time_s,ibi_ms,valid'].concat(lastResult.intervals.map((x, i) =>
+    (i + 1) + ',' + x.t.toFixed(3) + ',' + x.ibi.toFixed(1) + ',' + (x.valid ? 1 : 0)));
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hrv_' + lastResult.when.toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function loadHistory() { try { return JSON.parse(localStorage.getItem('hrvHistory') || '[]'); } catch (e) { return []; } }
+function saveHistory(r) {
+  const h = loadHistory();
+  h.unshift({ when: r.when.toISOString(), hr: Math.round(r.hr), rmssd: +r.rmssd.toFixed(1), ln: +r.lnRmssd.toFixed(2), q: r.grade });
+  try { localStorage.setItem('hrvHistory', JSON.stringify(h.slice(0, 30))); } catch (e) { }
+  renderHistory();
+}
+function renderHistory() {
+  const h = loadHistory();
+  $('histBox').hidden = !h.length;
+  $('histTable').innerHTML = '<tr><th>Date</th><th>HR</th><th>RMSSD</th><th>ln</th><th>Signal</th></tr>' +
+    h.map(x => '<tr><td>' + new Date(x.when).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' +
+      new Date(x.when).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + x.hr +
+      '</td><td>' + x.rmssd + '</td><td>' + x.ln + '</td><td>' + x.q + '</td></tr>').join('');
+}
+
+$('btnStart').addEventListener('click', start);
+$('btnStop').addEventListener('click', () => { stop(); show('scrStart'); });
+$('btnAgain').addEventListener('click', () => show('scrStart'));
+$('btnSend').addEventListener('click', sendToForm);
+$('btnSendAnyway').addEventListener('click', sendToForm);
+$('btnCsv').addEventListener('click', downloadCsv);
+$('btnCopy').addEventListener('click', () => {
+  if (!lastResult) return;
+  const txt = resultText(lastResult);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => { $('btnCopy').textContent = 'Copied'; }, () => { prompt('Copy:', txt); });
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && running) { stop(); show('scrStart'); }
+});
+renderHistory();
+</script>
+</body>
+</html>
