@@ -94,6 +94,7 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
     <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
     <div class="warnbox" id="notSupported" hidden></div>
     <button class="primary" id="btnStart">Start measurement</button>
+    <div class="debug">App version 0.2</div>
     <details class="card" id="histBox">
       <summary>My recent results on this phone</summary>
       <div class="tablewrap"><table id="histTable"></table></div>
@@ -423,8 +424,14 @@ async function start() {
   frames = { t: [], r: [], g: [], b: [] };
   phase = 'finger'; phaseStart = performance.now(); lostTotal = 0; fingerLostAt = 0; moveEvents = 0; prevR = null; lastMediaTime = -1;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
-      facingMode: { ideal: 'environment' }, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60, max: 60 } } });
+    // Ask firmly for 60 fps first; if the phone refuses, fall back to whatever it offers.
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
+        facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { min: 50, ideal: 60 } } });
+    } catch (e1) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
+        facingMode: { ideal: 'environment' }, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60, max: 60 } } });
+    }
   } catch (e) {
     $('phase').textContent = 'Camera not available';
     $('phaseSub').textContent = 'Allow camera access for this page, then try again. (' + e.name + ')';
@@ -493,7 +500,7 @@ function step(r, g, b, rStd) {
   setChk('cFinger', finger);
   const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
   setChk('cStill', finger && recent);
-  $('debug').textContent = 'R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+  $('debug').textContent = 'v0.2 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
     ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
 
   if (phase === 'finger') {
@@ -538,11 +545,15 @@ function liveUpdate() {
   if (!running || phase === 'finger') { $('liveHr').textContent = '--'; setChk('cSignal', false); return; }
   const n = frames.t.length;
   let from = n - 1;
-  while (from > 0 && frames.t[n - 1] - frames.t[from] < 10000) from--;
+  while (from > 0 && frames.t[n - 1] - frames.t[from] < 20000) from--;
+  if (frames.t[n - 1] - frames.t[from] < 8000) { $('liveHr').textContent = '--'; setChk('cSignal', false); return; }
   const res = PPG.analyze(frames.t.slice(from), chooseChannel(from));
-  const ok = res && !res.error && res.quality >= 0.8;
+  // Live view only needs a rough check: median of the clean intervals in the last 20 s.
+  const good = (res && res.intervals ? res.intervals : []).filter(x => x.valid).map(x => x.ibi);
+  const frac = res && res.intervals && res.intervals.length ? good.length / res.intervals.length : 0;
+  const ok = good.length >= 5 && frac >= 0.7;
   setChk('cSignal', ok);
-  $('liveHr').textContent = res && !res.error ? Math.round(res.hr) + ' bpm' : '--';
+  $('liveHr').textContent = ok ? Math.round(60000 / PPG.median(good)) + ' bpm' : '--';
 }
 
 function drawWave() {
