@@ -90,11 +90,12 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
         <button data-d="180">3 min</button>
       </div>
       <label class="note"><input type="checkbox" id="lockExp" checked> Lock camera exposure (recommended)</label>
+      <label class="note"><input type="checkbox" id="sound" checked> Beep and vibrate at start and finish</label>
     </div>
     <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
     <div class="warnbox" id="notSupported" hidden></div>
     <button class="primary" id="btnStart">Start measurement</button>
-    <div class="debug">App version 0.2</div>
+    <div class="debug">App version 0.3</div>
     <details class="card" id="histBox">
       <summary>My recent results on this phone</summary>
       <div class="tablewrap"><table id="histTable"></table></div>
@@ -417,7 +418,34 @@ function show(id) { ['scrStart', 'scrMeasure', 'scrResult'].forEach(s => $(s).hi
 function fmt(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function setChk(id, ok) { $(id).classList.toggle('ok', !!ok); }
 
+/* Sounds: the phone lies face-down on the finger, so the athlete needs to hear when it starts and ends. */
+let audioCtx = null;
+function unlockAudio() {
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e) { audioCtx = null; }
+}
+function tones(list) { // list of [frequencyHz, durationMs, gapMs]
+  if (!$('sound').checked || !audioCtx) return;
+  let t = audioCtx.currentTime + 0.05;
+  for (const [f, d, gap] of list) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d / 1000);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + d / 1000 + 0.05);
+    t += (d + (gap || 0)) / 1000;
+  }
+}
+function buzz(pattern) { if ($('sound').checked && navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) { } } }
+const cue = {
+  start: () => { tones([[880, 180]]); buzz(150); },
+  done: () => { tones([[880, 160, 90], [1320, 260]]); buzz([200, 100, 200]); },
+  fail: () => { tones([[300, 700]]); buzz(600); }
+};
+
 async function start() {
+  unlockAudio();
   show('scrMeasure');
   $('phase').textContent = 'Starting camera...'; $('phaseSub').textContent = ''; $('timer').textContent = '';
   $('torchWarn').hidden = true; $('liveHr').textContent = '--';
@@ -500,7 +528,7 @@ function step(r, g, b, rStd) {
   setChk('cFinger', finger);
   const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
   setChk('cStill', finger && recent);
-  $('debug').textContent = 'v0.2 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+  $('debug').textContent = 'v0.3 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
     ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
 
   if (phase === 'finger') {
@@ -515,7 +543,7 @@ function step(r, g, b, rStd) {
     $('phaseSub').textContent = 'Stay still. Recording starts by itself.';
     $('timer').textContent = fmt(left);
     if (!finger) { phase = 'finger'; fingerLostAt = 0; return; }
-    if (left <= 0) { phase = 'record'; phaseStart = now; recordStartIdx = frames.t.length; lostTotal = 0; moveEvents = 0; }
+    if (left <= 0) { phase = 'record'; phaseStart = now; recordStartIdx = frames.t.length; lostTotal = 0; moveEvents = 0; cue.start(); }
   } else if (phase === 'record') {
     const left = durS - (now - phaseStart) / 1000;
     $('phase').textContent = 'Recording';
@@ -594,6 +622,7 @@ function stop() {
 }
 
 function showError(msg) {
+  cue.fail();
   show('scrResult');
   lastResult = null;
   $('qBadge').className = 'badge poor'; $('qBadge').textContent = 'Not saved';
@@ -616,6 +645,7 @@ function finish() {
   res.when = new Date();
   res.moves = moveEvents;
   lastResult = res;
+  if (res.grade === 'poor') cue.fail(); else cue.done();
   renderResult(res);
   saveHistory(res);
 }
