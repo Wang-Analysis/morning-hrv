@@ -5,45 +5,62 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f1714">
 <title>Morning HRV</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 /* Layout: one phone-sized column; three screens (start, measuring, result) swap in place. */
 :root{
   --bg:#f2f5f3; --surface:#ffffff; --fg:#14201b; --muted:#5a6b64; --line:#d6dfdb;
   --accent:#d63a33; --accent-soft:#fbe2e0; --good:#1d7a52; --good-soft:#dcf2e7;
-  --warn:#a86a00; --warn-soft:#fbefd2; --bad:#b4271f; --bad-soft:#f9dcd9; --wave:#d63a33;
-  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --warn:#a86a00; --warn-soft:#fbefd2; --bad:#b4271f; --bad-soft:#f9dcd9; --skin:#e7b9a0; --phone:#26302c;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0f1714; --surface:#17211d; --fg:#e7eeea; --muted:#94a69e; --line:#2a3732;
   --accent:#ff6a5f; --accent-soft:#3b1c1a; --good:#4cc68f; --good-soft:#163428;
-  --warn:#f0b445; --warn-soft:#3a2d12; --bad:#ff6a5f; --bad-soft:#3b1c1a; --wave:#ff6a5f; color-scheme:dark}}
+  --warn:#f0b445; --warn-soft:#3a2d12; --bad:#ff6a5f; --bad-soft:#3b1c1a; --skin:#c99779; --phone:#3a4641; color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.5}
 .wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-bottom,0px))}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 h1{font-size:1.5rem;margin:0;letter-spacing:-.01em}
-.who{color:var(--muted);font-size:.95rem;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who{color:var(--muted);font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.headright{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
 .stack{display:flex;flex-direction:column;gap:14px}
-ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}
+.center{text-align:center;align-items:center}
 .label{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.seg{display:flex;gap:8px}
-.seg button{flex:1}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1 1 20%;padding:10px 6px}
 button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:12px 14px}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;font-size:1.05rem;padding:16px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:650;font-size:1.15rem;padding:18px}
+button.small{padding:8px 12px;font-size:.9rem}
+button.link{border:none;background:none;color:var(--muted);padding:4px 0;font-size:.9rem;text-decoration:underline}
 button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
 button:disabled{opacity:.45;cursor:not-allowed}
-button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.phase{font-size:1.25rem;font-weight:650}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.steps li{display:flex;gap:10px;align-items:flex-start}
+.steps li::before{counter-increment:s;content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+.illus{display:block;width:100%;max-width:260px;margin:0 auto}
+.phase{font-size:1.3rem;font-weight:650}
 .sub{color:var(--muted)}
-.timer{font-family:var(--mono);font-size:2.6rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.ringwrap{position:relative;width:200px;height:200px;margin:4px auto}
+.ringwrap svg.ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.lens{position:absolute;inset:24px;border-radius:50%;overflow:hidden;background:#000}
+.lens video{width:100%;height:100%;object-fit:cover;display:block}
+.lens svg{position:absolute;inset:0;width:100%;height:100%}
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.readout .box{background:var(--bg);border-radius:12px;padding:10px;text-align:center}
+.readout .v{font-family:var(--mono);font-size:2rem;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.1}
+.pill{border-radius:999px;padding:8px 14px;text-align:center;font-weight:600;font-size:.95rem;background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.good{background:var(--good-soft);color:var(--good)}
 canvas{width:100%;display:block;border-radius:10px;background:var(--bg)}
-.checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.chk{border-radius:10px;padding:8px;text-align:center;font-size:.85rem;background:var(--bad-soft);color:var(--bad);font-weight:600}
-.chk.ok{background:var(--good-soft);color:var(--good)}
-.row{display:flex;gap:12px;align-items:center;justify-content:space-between}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .big{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .metric{background:var(--bg);border-radius:12px;padding:12px}
 .metric .v{font-size:2.2rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -52,23 +69,26 @@ canvas{width:100%;display:block;border-radius:10px;background:var(--bg)}
 .badge.good{background:var(--good-soft);color:var(--good)}
 .badge.ok{background:var(--warn-soft);color:var(--warn)}
 .badge.poor{background:var(--bad-soft);color:var(--bad)}
+.msg{border-radius:12px;padding:12px 14px;font-weight:550}
+.msg.normal{background:var(--good-soft);color:var(--good)}
+.msg.low{background:var(--warn-soft);color:var(--warn)}
+.msg.high{background:var(--good-soft);color:var(--good)}
+.msg.info{background:var(--bg);color:var(--muted);font-weight:500}
 .note{font-size:.88rem;color:var(--muted)}
 .warnbox{background:var(--warn-soft);color:var(--fg);border-radius:10px;padding:10px 12px;font-size:.92rem}
+.infobox{background:var(--good-soft);color:var(--fg);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .debug{font-family:var(--mono);font-size:.72rem;color:var(--muted);word-break:break-all}
+.ver{font-size:.75rem;color:var(--muted);text-align:center;user-select:none}
 table{width:100%;border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums}
 th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
 th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
 .tablewrap{overflow-x:auto}
-details summary{cursor:pointer;color:var(--muted)}
-.guide{display:flex;gap:14px;align-items:center}
-.lens{position:relative;width:118px;height:118px;flex:none;border-radius:50%;overflow:hidden;border:4px solid var(--line);background:#000}
-.lens.on{border-color:var(--good)}
-.lens video{width:100%;height:100%;object-fit:cover;display:block}
-.lens svg{position:absolute;inset:0;width:100%;height:100%}
-.guidetext{display:flex;flex-direction:column;gap:6px;min-width:0}
-.guidetext b{font-size:1rem}
-.guidetext span{font-size:.88rem;color:var(--muted)}
-.guidetext button{padding:8px 12px;font-size:.9rem;align-self:flex-start}
+details>summary{cursor:pointer;color:var(--fg);font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details>summary::after{content:"+";color:var(--muted);font-size:1.3rem;line-height:1}
+details[open]>summary::after{content:"–"}
+details>summary::-webkit-details-marker{display:none}
+.lbl{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
+.lbl input{margin-top:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -76,103 +96,137 @@ details summary{cursor:pointer;color:var(--muted)}
 <div class="wrap">
   <header>
     <h1>Morning HRV</h1>
-    <div class="who" id="who"></div>
+    <div class="headright">
+      <button class="small" id="btnLang" type="button">हिंदी</button>
+      <div class="who" id="who"></div>
+    </div>
   </header>
 
   <!-- START SCREEN -->
   <section id="scrStart" class="stack">
     <div class="card stack">
-      <div class="label">Before you start</div>
+      <svg class="illus" viewBox="0 0 260 170" role="img" aria-labelledby="illusT">
+        <title id="illusT">Fingertip resting on the back camera of a phone</title>
+        <rect x="70" y="8" width="120" height="200" rx="18" fill="var(--phone)"/>
+        <rect x="88" y="26" width="64" height="34" rx="17" fill="#111"/>
+        <circle cx="106" cy="43" r="13" fill="#2a3a4a" stroke="#555" stroke-width="2"/>
+        <circle cx="135" cy="43" r="8" fill="#2a3a4a" stroke="#555" stroke-width="2"/>
+        <circle cx="168" cy="38" r="5" fill="#ffe9a8"/>
+        <path d="M92 170 L92 62 Q92 36 106 36 Q120 36 120 62 L120 170 Z" fill="var(--skin)" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
+        <path d="M100 52 Q106 46 112 52" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/>
+        <path d="M150 22 L176 10" stroke="var(--accent)" stroke-width="2.5"/>
+        <text x="180" y="12" font-size="12" fill="var(--muted)" data-i="flashLbl">flash</text>
+        <path d="M120 82 L196 104" stroke="var(--accent)" stroke-width="2.5"/>
+        <text x="198" y="108" font-size="12" fill="var(--muted)" data-i="lensLbl">big lens</text>
+      </svg>
       <ol class="steps">
-        <li>Do it <b>right after waking</b> and using the toilet. Same time every day.</li>
-        <li><b>Lie on your back</b> and rest quietly for 1 minute.</li>
-        <li>Hold the phone in one hand and rest your <b>index fingertip on the back camera</b> (the big lens). You do <b>not</b> need to cover the flash. Touch lightly, do not press. The app finds the camera your finger is on by itself.</li>
-        <li>Keep your hand resting on your chest or the bed. <b>Stay still</b> and breathe normally.</li>
+        <li><span data-i="step1"></span></li>
+        <li><span data-i="step2"></span></li>
+        <li><span data-i="step3"></span></li>
       </ol>
     </div>
-    <div class="card stack">
-      <div class="label">Recording length</div>
-      <div class="seg" id="durSeg">
-        <button data-d="30">30 sec</button>
-        <button data-d="60" class="on">1 min</button>
-        <button data-d="120">2 min</button>
-        <button data-d="180">3 min</button>
-      </div>
-      <label class="note"><input type="checkbox" id="lockExp"> Lock camera exposure (try only if the pulse is weak)</label>
-      <label class="note"><input type="checkbox" id="sound" checked> Beep and vibrate at start and finish</label>
-      <div class="row"><button id="btnTestCue" type="button">Test beep &amp; vibration</button><span class="note" id="cueMsg"></span></div>
+    <div class="infobox" id="installBox" hidden>
+      <span data-i="install"></span>
+      <button class="small" id="btnInstall" type="button" data-i="installBtn"></button>
     </div>
-    <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
-    <div class="warnbox" id="notSupported" hidden></div>
-    <button class="primary" id="btnStart">Start measurement</button>
-    <div class="note" id="durNote">30 sec gives a quick check. For daily HRV, 1 min or longer is more reliable.</div>
-    <div class="debug">App version 0.5.1</div>
-    <details class="card" id="histBox">
-      <summary>My recent results on this phone</summary>
-      <div class="tablewrap"><table id="histTable"></table></div>
+    <div class="warnbox" id="noSend" hidden data-i="noSend"></div>
+    <div class="warnbox" id="notSupported" hidden data-i="notSupported"></div>
+    <button class="primary" id="btnStart" type="button" data-i="start"></button>
+    <div class="note center" id="durShow" style="display:flex;justify-content:center"></div>
+
+    <details class="card" id="setBox">
+      <summary data-i="settings"></summary>
+      <div class="stack" style="margin-top:14px">
+        <div class="label" data-i="length"></div>
+        <div class="seg" id="durSeg">
+          <button data-d="30" data-i="s30"></button>
+          <button data-d="60" data-i="m1"></button>
+          <button data-d="120" data-i="m2"></button>
+          <button data-d="180" data-i="m3"></button>
+        </div>
+        <div class="note" data-i="durNote"></div>
+        <label class="lbl"><input type="checkbox" id="sound" checked> <span data-i="sound"></span></label>
+        <div class="row"><button class="small" id="btnTestCue" type="button" data-i="testCue"></button><span class="note" id="cueMsg"></span></div>
+        <label class="lbl"><input type="checkbox" id="lockExp"> <span data-i="lockExp"></span></label>
+        <div class="row"><button class="small" id="btnResetCam" type="button" data-i="resetCam"></button><span class="note" id="camMsg"></span></div>
+        <div class="note" id="installHow" data-i="installHow"></div>
+        <div class="row" id="profileRow" hidden><span class="note" id="profileTxt"></span><button class="small" id="btnForget" type="button" data-i="forget"></button></div>
+      </div>
     </details>
+    <details class="card" id="histBox">
+      <summary data-i="history"></summary>
+      <div class="tablewrap" style="margin-top:10px"><table id="histTable"></table></div>
+    </details>
+    <div class="ver" id="ver">App version 0.6</div>
   </section>
 
   <!-- MEASURING SCREEN -->
   <section id="scrMeasure" class="stack" hidden>
-    <div class="card stack">
-      <div class="row">
-        <div>
-          <div class="phase" id="phase">Starting camera...</div>
-          <div class="sub" id="phaseSub"></div>
-        </div>
-        <div class="timer" id="timer"></div>
+    <div class="card stack center">
+      <div>
+        <div class="phase" id="phase"></div>
+        <div class="sub" id="phaseSub"></div>
       </div>
-      <div class="guide">
-        <div class="lens" id="lens">
+      <div class="ringwrap">
+        <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="92" fill="none" stroke="var(--line)" stroke-width="10"/>
+          <circle id="ringBar" cx="100" cy="100" r="92" fill="none" stroke="var(--warn)" stroke-width="10" stroke-linecap="round" stroke-dasharray="578.05" stroke-dashoffset="578.05"/>
+        </svg>
+        <div class="lens">
           <video id="video" playsinline muted></video>
           <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 78 C20 58 14 40 26 30 C35 23 45 27 50 36 C55 27 65 23 74 30 C86 40 80 58 50 78 Z" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3"/></svg>
         </div>
-        <div class="guidetext">
-          <b id="camName">Main camera</b>
-          <span id="camHint">Rest your fingertip on a back camera. The app finds it by itself and the circle turns red.</span>
-          <button id="btnSwitch" type="button">Switch camera</button>
-        </div>
       </div>
-      <canvas id="wave" height="150"></canvas>
-      <div class="checks">
-        <div class="chk" id="cFinger">Finger</div>
-        <div class="chk" id="cSignal">Pulse</div>
-        <div class="chk" id="cStill">Still</div>
+      <div class="readout" style="width:100%">
+        <div class="box"><div class="label" data-i="timeLeft"></div><div class="v" id="timer">--</div></div>
+        <div class="box"><div class="label" data-i="hrNow"></div><div class="v" id="liveHr">--</div></div>
       </div>
-      <div class="row"><span class="sub">Heart rate now</span><span class="phase" id="liveHr">--</span></div>
+      <div class="pill" id="status" style="width:100%"></div>
+      <canvas id="wave" height="110"></canvas>
+      <div class="row" style="width:100%">
+        <span class="note" id="camName"></span>
+        <button class="small" id="btnSwitch" type="button" data-i="switchCam"></button>
+      </div>
     </div>
-    <div class="warnbox" id="torchWarn" hidden>The flash is not on for this camera. Tap <b>Switch camera</b> and choose the one next to the flash.</div>
-    <button id="btnStop">Cancel</button>
-    <div class="debug" id="debug"></div>
+    <div class="warnbox" id="torchWarn" hidden data-i="torchWarn"></div>
+    <button id="btnStop" type="button" data-i="cancel"></button>
+    <div class="debug" id="debug" hidden></div>
   </section>
 
   <!-- RESULT SCREEN -->
   <section id="scrResult" class="stack" hidden>
     <div class="card stack">
-      <div class="row"><div class="label">Result</div><span class="badge" id="qBadge"></span></div>
+      <div class="row"><div class="label" data-i="result"></div><span class="badge" id="qBadge"></span></div>
       <div class="big">
-        <div class="metric"><div class="label">Resting HR</div><div class="v" id="rHr">--</div><div class="u">bpm</div></div>
+        <div class="metric"><div class="label" data-i="restingHr"></div><div class="v" id="rHr">--</div><div class="u">bpm</div></div>
         <div class="metric"><div class="label">RMSSD</div><div class="v" id="rRm">--</div><div class="u">ms</div></div>
       </div>
       <div class="note" id="rDetail"></div>
-      <div class="label">Pulse wave · last 10 seconds</div>
-      <canvas id="pulseChart" height="120"></canvas>
-      <div class="label">Heart rate during the measurement</div>
-      <canvas id="hrChart" height="160"></canvas>
+    </div>
+    <div class="warnbox" id="poorMsg" hidden data-i="poorMsg"></div>
+    <div class="card stack" id="trendCard" hidden>
+      <div class="label" data-i="trendTitle"></div>
+      <div class="msg" id="trendMsg"></div>
+      <canvas id="trendChart" height="150"></canvas>
+      <div class="note" id="trendNote"></div>
+    </div>
+    <button class="primary" id="btnSend" type="button" hidden data-i="send"></button>
+    <button id="btnAgain" type="button" data-i="again"></button>
+    <button id="btnSendAnyway" type="button" hidden data-i="sendAnyway"></button>
+    <div class="card stack" id="chartCard">
+      <div class="label" data-i="pulseTitle"></div>
+      <canvas id="pulseChart" height="110"></canvas>
+      <div class="label" data-i="hrTitle"></div>
+      <canvas id="hrChart" height="150"></canvas>
       <div class="note" id="hrNote"></div>
     </div>
-    <div class="warnbox" id="poorMsg" hidden>The signal was not clean enough. Please measure again: lie still, touch the camera lightly, and keep your hand relaxed.</div>
-    <button class="primary" id="btnSend" hidden>Continue to wellness form</button>
-    <button id="btnAgain">Measure again</button>
-    <button id="btnSendAnyway" hidden>Send anyway</button>
     <details class="card">
-      <summary>Data for checking (coach / physiologist)</summary>
+      <summary data-i="checkData"></summary>
       <div class="stack" style="margin-top:10px">
         <canvas id="tacho" height="140"></canvas>
-        <div class="note">Beat-to-beat intervals. Grey dots were rejected as noise.</div>
-        <button id="btnCopy">Copy result</button>
-        <button id="btnCsv">Download beat intervals (CSV)</button>
+        <div class="note" data-i="tachoNote"></div>
+        <button id="btnCopy" type="button" data-i="copy"></button>
+        <button id="btnCsv" type="button" data-i="csv"></button>
         <div class="debug" id="rDebug"></div>
       </div>
     </details>
@@ -415,72 +469,186 @@ const PPG = (() => {
 </script>
 
 <script>
-/* ---------------- App ---------------- */
+/* ================= App ================= */
+const VERSION = '0.6';
 const $ = id => document.getElementById(id);
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
+
+/* ---- Language ---- */
+const I18N = {
+  en: {
+    flashLbl: 'flash', lensLbl: 'big lens',
+    step1: 'Right after waking, lie on your back and rest for 1 minute.',
+    step2: 'Rest your index fingertip lightly on the back camera (the big lens). No need to cover the flash.',
+    step3: 'Stay still and breathe normally. A beep tells you when it starts and when it is done.',
+    start: 'Start measurement', durShow: 'Recording time: {d}', settings: 'Settings', length: 'Recording length',
+    s30: '30 sec', m1: '1 min', m2: '2 min', m3: '3 min',
+    durNote: '30 sec is only a quick check. For your daily HRV, use 1 min or longer.',
+    sound: 'Beep and vibrate at start and finish', testCue: 'Test beep & vibration',
+    cueSent: 'Vibration sent. If you felt nothing, turn on vibration in phone settings.', cueBlocked: 'The phone blocked vibration.', cueNo: 'This browser cannot vibrate the phone.',
+    lockExp: 'Lock camera exposure (only if the pulse is weak)',
+    resetCam: 'Choose camera again', camReset: 'Done. The app will search for your finger again.',
+    installHow: 'To use it like an app: in Chrome tap ⋮ then "Add to Home screen".',
+    install: 'Add Morning HRV to your Home screen to open it like an app.', installBtn: 'Install',
+    forget: 'Remove', profileIs: 'Saved athlete on this phone: {n}',
+    history: 'My recent results', thDate: 'Date', thSignal: 'Signal',
+    noSend: 'Open this app once from your personal HRV link, so your results go into your wellness form.',
+    notSupported: 'This browser cannot use the camera. Open the link in Chrome on an Android phone.',
+    startingCam: 'Starting camera...', camNA: 'Camera not available', camAllow: 'Allow camera access for this page, then try again.',
+    lookFinger: 'Looking for your finger', lookSub: 'Rest your fingertip on a back camera. Checking camera {i} of {n}...',
+    placeFinger: 'Place your finger', placeSub: 'Rest your fingertip lightly on the back camera.',
+    settle: 'Getting ready', settleSub: 'Stay still. Recording starts by itself.',
+    record: 'Recording', recordSub: 'Stay still and breathe normally.',
+    timeLeft: 'Time left', hrNow: 'Heart rate now',
+    stNoFinger: 'No finger on the camera', stFinger: 'Finger found. Keep still', stMoving: 'Moving. Keep still', stPulse: 'Good pulse signal',
+    switchCam: 'Switch camera', camLabel: 'Camera {i} of {n}', withFlash: ' (with flash)', noFlash: ' (no flash)', backCam: 'Back camera',
+    torchWarn: 'The flash is not on for this camera. If your pulse is not found, tap "Switch camera".',
+    cancel: 'Cancel', fingerMoved: 'Your finger moved off the camera.', tryAgain: 'Please try again.',
+    result: 'Result', restingHr: 'Resting HR', good: 'Good signal', ok: 'Acceptable', poor: 'Poor signal', notSaved: 'Not saved',
+    detail: 'ln RMSSD {ln} · {v} of {t} beats used ({q}%) · {s} s',
+    trendTitle: 'Your last 7 days (RMSSD)',
+    trendNeed: 'Measure on {n} more day(s) to see how today compares with your usual.',
+    trendNormal: 'Today is close to your usual. Recovery looks normal.',
+    trendLow: 'Today is lower than your usual. Your body may need more recovery. Tell your coach how you feel.',
+    trendHigh: 'Today is higher than your usual. This is usually a good sign of recovery.',
+    trendNote: 'Shaded band = your usual range. Big dot = today.',
+    pulseTitle: 'Pulse wave · last 10 seconds', hrTitle: 'Heart rate during the measurement',
+    hrNote: 'Average {a} bpm (dashed line) · lowest {lo} · highest {hi} bpm. Rising and falling with your breathing is normal.',
+    poorMsg: 'The signal was not clean enough. Please measure again: lie still and touch the camera lightly.',
+    send: 'Continue to wellness form', again: 'Measure again', sendAnyway: 'Send anyway',
+    checkData: 'Data for checking (coach / physiologist)', tachoNote: 'Beat-to-beat intervals. Grey dots were rejected as noise.',
+    copy: 'Copy result', copied: 'Copied', csv: 'Download beat intervals (CSV)',
+    'Too few camera frames': 'Too few camera frames.', 'Recording too short': 'Recording too short.',
+    'No clear pulse found': 'No clear pulse found.', 'Not enough clean beats': 'Not enough clean beats.'
+  },
+  hi: {
+    flashLbl: 'फ़्लैश', lensLbl: 'बड़ा लेंस',
+    step1: 'उठते ही पीठ के बल लेटें और 1 मिनट आराम करें।',
+    step2: 'तर्जनी उंगली का सिरा पीछे वाले कैमरे (बड़े लेंस) पर हल्के से रखें। फ़्लैश ढकने की ज़रूरत नहीं है।',
+    step3: 'स्थिर रहें और सामान्य रूप से साँस लें। शुरू होने और खत्म होने पर बीप बजेगी।',
+    start: 'माप शुरू करें', durShow: 'रिकॉर्डिंग समय: {d}', settings: 'सेटिंग्स', length: 'रिकॉर्डिंग समय',
+    s30: '30 सेकंड', m1: '1 मिनट', m2: '2 मिनट', m3: '3 मिनट',
+    durNote: '30 सेकंड केवल जल्दी जाँच के लिए है। रोज़ के HRV के लिए 1 मिनट या उससे ज़्यादा चुनें।',
+    sound: 'शुरू और अंत में बीप और वाइब्रेशन', testCue: 'बीप और वाइब्रेशन जाँचें',
+    cueSent: 'वाइब्रेशन भेजा गया। अगर महसूस नहीं हुआ, तो फ़ोन की सेटिंग में वाइब्रेशन चालू करें।', cueBlocked: 'फ़ोन ने वाइब्रेशन रोक दिया।', cueNo: 'यह ब्राउज़र फ़ोन को वाइब्रेट नहीं कर सकता।',
+    lockExp: 'कैमरा एक्सपोज़र लॉक करें (केवल तब, जब पल्स कमज़ोर हो)',
+    resetCam: 'कैमरा फिर से चुनें', camReset: 'हो गया। ऐप फिर से आपकी उंगली ढूँढेगा।',
+    installHow: 'ऐप की तरह इस्तेमाल करने के लिए: Chrome में ⋮ दबाएँ, फिर "Add to Home screen" चुनें।',
+    install: 'Morning HRV को होम स्क्रीन पर जोड़ें, ताकि यह ऐप की तरह खुले।', installBtn: 'इंस्टॉल करें',
+    forget: 'हटाएँ', profileIs: 'इस फ़ोन पर सेव खिलाड़ी: {n}',
+    history: 'मेरे हाल के परिणाम', thDate: 'तारीख', thSignal: 'सिग्नल',
+    noSend: 'अपने निजी HRV लिंक से एक बार यह ऐप खोलें, ताकि परिणाम आपके वेलनेस फ़ॉर्म में जाएँ।',
+    notSupported: 'यह ब्राउज़र कैमरा इस्तेमाल नहीं कर सकता। लिंक को Android फ़ोन के Chrome में खोलें।',
+    startingCam: 'कैमरा शुरू हो रहा है...', camNA: 'कैमरा उपलब्ध नहीं', camAllow: 'इस पेज को कैमरे की अनुमति दें, फिर दोबारा कोशिश करें।',
+    lookFinger: 'आपकी उंगली ढूँढ रहे हैं', lookSub: 'उंगली का सिरा पीछे वाले कैमरे पर रखें। कैमरा {i} / {n} जाँच रहे हैं...',
+    placeFinger: 'उंगली रखें', placeSub: 'उंगली का सिरा पीछे वाले कैमरे पर हल्के से रखें।',
+    settle: 'तैयारी हो रही है', settleSub: 'स्थिर रहें। रिकॉर्डिंग अपने-आप शुरू होगी।',
+    record: 'रिकॉर्डिंग चल रही है', recordSub: 'स्थिर रहें और सामान्य साँस लें।',
+    timeLeft: 'बचा समय', hrNow: 'अभी की हृदय गति',
+    stNoFinger: 'कैमरे पर उंगली नहीं है', stFinger: 'उंगली मिल गई। स्थिर रहें', stMoving: 'आप हिल रहे हैं। स्थिर रहें', stPulse: 'अच्छा पल्स सिग्नल',
+    switchCam: 'कैमरा बदलें', camLabel: 'कैमरा {i} / {n}', withFlash: ' (फ़्लैश सहित)', noFlash: ' (बिना फ़्लैश)', backCam: 'पीछे का कैमरा',
+    torchWarn: 'इस कैमरे के लिए फ़्लैश चालू नहीं है। अगर पल्स नहीं मिल रही, तो "कैमरा बदलें" दबाएँ।',
+    cancel: 'रद्द करें', fingerMoved: 'आपकी उंगली कैमरे से हट गई।', tryAgain: 'कृपया दोबारा करें।',
+    result: 'परिणाम', restingHr: 'आराम की हृदय गति', good: 'अच्छा सिग्नल', ok: 'ठीक-ठाक', poor: 'कमज़ोर सिग्नल', notSaved: 'सेव नहीं हुआ',
+    detail: 'ln RMSSD {ln} · {t} में से {v} धड़कनें इस्तेमाल हुईं ({q}%) · {s} सेकंड',
+    trendTitle: 'आपके पिछले 7 दिन (RMSSD)',
+    trendNeed: 'आज की तुलना आपके सामान्य से देखने के लिए {n} और दिन मापें।',
+    trendNormal: 'आज का मान आपके सामान्य के करीब है। रिकवरी सामान्य लगती है।',
+    trendLow: 'आज का मान आपके सामान्य से कम है। शरीर को और आराम की ज़रूरत हो सकती है। अपने कोच को बताएँ कि आप कैसा महसूस कर रहे हैं।',
+    trendHigh: 'आज का मान आपके सामान्य से ज़्यादा है। आमतौर पर यह अच्छी रिकवरी का संकेत है।',
+    trendNote: 'छायांकित पट्टी = आपकी सामान्य सीमा। बड़ा बिंदु = आज।',
+    pulseTitle: 'पल्स तरंग · आखिरी 10 सेकंड', hrTitle: 'माप के दौरान हृदय गति',
+    hrNote: 'औसत {a} bpm (डैश वाली लाइन) · न्यूनतम {lo} · अधिकतम {hi} bpm। साँस के साथ ऊपर-नीचे होना सामान्य है।',
+    poorMsg: 'सिग्नल साफ़ नहीं था। कृपया दोबारा मापें: स्थिर लेटें और कैमरे को हल्के से छुएँ।',
+    send: 'वेलनेस फ़ॉर्म पर जाएँ', again: 'दोबारा मापें', sendAnyway: 'फिर भी भेजें',
+    checkData: 'जाँच के लिए डेटा (कोच / फ़िज़ियोलॉजिस्ट)', tachoNote: 'धड़कन-से-धड़कन अंतराल। धूसर बिंदु शोर मानकर हटाए गए।',
+    copy: 'परिणाम कॉपी करें', copied: 'कॉपी हो गया', csv: 'धड़कन अंतराल डाउनलोड करें (CSV)',
+    'Too few camera frames': 'कैमरे से बहुत कम फ़्रेम मिले।', 'Recording too short': 'रिकॉर्डिंग बहुत छोटी थी।',
+    'No clear pulse found': 'साफ़ पल्स नहीं मिली।', 'Not enough clean beats': 'पर्याप्त साफ़ धड़कनें नहीं मिलीं।'
+  }
+};
+let LANG = lsGet('hrvLang', 'en') === 'hi' ? 'hi' : 'en';
+function t(k, v) {
+  let s = (I18N[LANG] && I18N[LANG][k] !== undefined) ? I18N[LANG][k] : (I18N.en[k] !== undefined ? I18N.en[k] : k);
+  if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]);
+  return s;
+}
+const LOCALE = () => LANG === 'hi' ? 'hi-IN' : 'en-IN';
+
+/* ---- Personal link: remembered so the home-screen app keeps the athlete's form link ---- */
 const params = new URLSearchParams(location.search);
-const FORM_URL = params.get('f') || '';
-const NAME = params.get('n') || '';
+let profile = {};
+try { profile = JSON.parse(lsGet('hrvProfile', '{}')) || {}; } catch (e) { profile = {}; }
+if (params.get('f') || params.get('n')) { profile = { n: params.get('n') || '', f: params.get('f') || '' }; lsSet('hrvProfile', JSON.stringify(profile)); }
+let FORM_URL = profile.f || '', NAME = profile.n || '';
+let DEBUG = params.get('debug') === '1' || lsGet('hrvDebug', '') === '1';
 const SETTLE_S = 10;
 
-let durS = 60, stream = null, track = null, running = false, wakeLock = null;
+let durS = Number(lsGet('hrvDur', '60')) || 60, stream = null, track = null, running = false, wakeLock = null;
 let frames = null, phase = 'idle', phaseStart = 0, fingerLostAt = 0, lostTotal = 0, recordStartIdx = 0;
-let camList = [], camIdx = 0, loopId = 0, switching = false, camOpenedAt = 0, lastFingerAt = 0;
+let camList = [], camIdx = 0, loopId = 0, switching = false, camOpenedAt = 0, lastFingerAt = 0, signalOk = false;
 let lastMediaTime = -1, lastResult = null, liveTimer = null, moveEvents = 0, prevR = null;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 canvas.width = 40; canvas.height = 30;
+const RING_C = 2 * Math.PI * 92;
 
-$('who').textContent = NAME;
-if (!FORM_URL) $('noSend').hidden = false;
-if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-  $('notSupported').hidden = false;
-  $('notSupported').textContent = 'This browser cannot use the camera here. Open the page in Chrome on an Android phone, using an https:// link.';
-  $('btnStart').disabled = true;
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i]').forEach(el => { el.textContent = t(el.dataset.i); });
+  $('btnLang').textContent = LANG === 'hi' ? 'English' : 'हिंदी';
+  $('durShow').textContent = t('durShow', { d: durLabel(durS) });
+  $('who').textContent = NAME;
+  $('profileRow').hidden = !NAME;
+  $('profileTxt').textContent = t('profileIs', { n: NAME });
+  renderHistory();
+  if (lastResult && !$('scrResult').hidden) renderResult(lastResult);
 }
-
-document.querySelectorAll('#durSeg button').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('#durSeg button').forEach(x => x.classList.remove('on'));
-  b.classList.add('on'); durS = Number(b.dataset.d);
-}));
+function durLabel(d) { return t({ 30: 's30', 60: 'm1', 120: 'm2', 180: 'm3' }[d] || 'm1'); }
+function setDur(d) {
+  durS = d; lsSet('hrvDur', String(d));
+  document.querySelectorAll('#durSeg button').forEach(x => x.classList.toggle('on', Number(x.dataset.d) === d));
+  $('durShow').textContent = t('durShow', { d: durLabel(d) });
+}
 
 function show(id) { ['scrStart', 'scrMeasure', 'scrResult'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
 function fmt(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
-function setChk(id, ok) { $(id).classList.toggle('ok', !!ok); }
-
-/* Sounds: the phone lies face-down on the finger, so the athlete needs to hear when it starts and ends. */
-let audioCtx = null;
-function unlockAudio() {
-  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e) { audioCtx = null; }
+function setRing(frac, color) {
+  const bar = $('ringBar');
+  bar.setAttribute('stroke-dashoffset', String(RING_C * (1 - Math.max(0, Math.min(1, frac)))));
+  bar.setAttribute('stroke', color);
 }
-function tones(list) { // list of [frequencyHz, durationMs, gapMs]
+function setStatus(key, cls) { const el = $('status'); el.textContent = t(key); el.className = 'pill' + (cls ? ' ' + cls : ''); }
+
+/* ---- Sounds & vibration: the phone faces down on the finger ---- */
+let audioCtx = null;
+function unlockAudio() { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (e) { audioCtx = null; } }
+function tones(list) {
   if (!$('sound').checked || !audioCtx) return;
-  let t = audioCtx.currentTime + 0.05;
+  let tt = audioCtx.currentTime + 0.05;
   for (const [f, d, gap] of list) {
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = 'sine'; o.frequency.value = f;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + d / 1000);
+    g.gain.setValueAtTime(0.0001, tt);
+    g.gain.exponentialRampToValueAtTime(0.5, tt + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, tt + d / 1000);
     o.connect(g); g.connect(audioCtx.destination);
-    o.start(t); o.stop(t + d / 1000 + 0.05);
-    t += (d + (gap || 0)) / 1000;
+    o.start(tt); o.stop(tt + d / 1000 + 0.05);
+    tt += (d + (gap || 0)) / 1000;
   }
 }
-let lastBuzzOk = null;
-function buzz(pattern) {
-  if (!$('sound').checked) return;
-  if (!('vibrate' in navigator)) { lastBuzzOk = false; return; }
-  try { lastBuzzOk = navigator.vibrate(pattern); } catch (e) { lastBuzzOk = false; }
-}
+function buzz(p) { if (!$('sound').checked || !('vibrate' in navigator)) return false; try { return navigator.vibrate(p); } catch (e) { return false; } }
 const cue = {
   start: () => { tones([[880, 180]]); buzz(300); },
   done: () => { tones([[880, 160, 90], [1320, 260]]); buzz([400, 150, 400]); },
   fail: () => { tones([[300, 700]]); buzz(900); }
 };
 
-/* Camera handling: use ONE back camera, preferably the one that controls the flash. */
+/* ---- Camera: one back camera; the app finds the one the finger is on ---- */
 function camNum(label) { const m = /(\d+)/.exec(label || ''); return m ? Number(m[1]) : 99; }
-function hasTorch(t) { try { return !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { return false; } }
+function hasTorch(tr) { try { return !!(tr && tr.getCapabilities && tr.getCapabilities().torch); } catch (e) { return false; } }
 async function listBackCams() {
   const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
   const back = devs.filter(d => !/front|user/i.test(d.label));
@@ -488,7 +656,7 @@ async function listBackCams() {
   return list.sort((a, b) => camNum(a.label) - camNum(b.label));
 }
 async function openCam(deviceId) {
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (stream) stream.getTracks().forEach(x => x.stop());
   const v = { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60 } };
   if (deviceId) v.deviceId = { exact: deviceId }; else v.facingMode = { ideal: 'environment' };
   stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: v });
@@ -497,22 +665,21 @@ async function openCam(deviceId) {
   video.srcObject = stream;
   await video.play().catch(() => {});
 }
-function savedCam() { try { return localStorage.getItem('hrvCam') || ''; } catch (e) { return ''; } }
-function saveCam(id) { try { localStorage.setItem('hrvCam', id); } catch (e) { } }
 function showCamName() {
   const n = camList.length;
-  $('camName').textContent = n > 1 ? 'Camera ' + (camIdx + 1) + ' of ' + n + (hasTorch(track) ? ' (with flash)' : ' (no flash)') : 'Back camera';
+  $('camName').textContent = n > 1 ? t('camLabel', { i: camIdx + 1, n: n }) + (hasTorch(track) ? t('withFlash') : t('noFlash')) : t('backCam');
   $('btnSwitch').hidden = n < 2;
 }
 async function pickCamera() {
-  await openCam(savedCam() || null);           // also asks for permission
+  const saved = lsGet('hrvCam', '');
+  await openCam(saved || null);
   camList = await listBackCams();
   const cur = track && track.getSettings ? track.getSettings().deviceId : '';
-  let idx = camList.findIndex(c => c.deviceId === cur);
-  if (idx >= 0 && hasTorch(track) && savedCam()) { camIdx = idx; return; }
-  for (let i = 0; i < camList.length; i++) {      // first camera that can switch the flash on
+  const idx = camList.findIndex(c => c.deviceId === cur);
+  if (idx >= 0 && saved) { camIdx = idx; return; }
+  for (let i = 0; i < camList.length; i++) {
     try { await openCam(camList[i].deviceId); } catch (e) { continue; }
-    if (hasTorch(track)) { camIdx = i; saveCam(camList[i].deviceId); return; }
+    if (hasTorch(track)) { camIdx = i; return; }
   }
   camIdx = 0;
   if (camList[0]) await openCam(camList[0].deviceId);
@@ -520,7 +687,7 @@ async function pickCamera() {
 function resetMeasure() {
   frames = { t: [], r: [], g: [], b: [] };
   phase = 'finger'; phaseStart = performance.now(); lostTotal = 0; fingerLostAt = 0; moveEvents = 0; prevR = null; lastMediaTime = -1;
-  $('liveHr').textContent = '--'; setChk('cSignal', false);
+  signalOk = false; $('liveHr').textContent = '--'; $('timer').textContent = fmt(durS); setRing(0, 'var(--warn)');
 }
 function startLoop() {
   const id = ++loopId, video = $('video');
@@ -539,36 +706,11 @@ async function switchCamera() {
   try { await openCam(camList[camIdx].deviceId); } catch (e) { switching = false; camOpenedAt = performance.now(); startLoop(); return; }
   camOpenedAt = performance.now();
   switching = false;
-  saveCam(camList[camIdx].deviceId);
   resetMeasure();
   showCamName();
   await torchOn(); setTimeout(torchOn, 700);
   startLoop();
 }
-
-async function start() {
-  unlockAudio();
-  show('scrMeasure');
-  $('phase').textContent = 'Starting camera...'; $('phaseSub').textContent = ''; $('timer').textContent = '';
-  $('torchWarn').hidden = true;
-  resetMeasure();
-  try {
-    await pickCamera();
-  } catch (e) {
-    $('phase').textContent = 'Camera not available';
-    $('phaseSub').textContent = 'Allow camera access for this page, then try again. (' + e.name + ')';
-    return;
-  }
-  running = true;
-  camOpenedAt = performance.now();
-  showCamName();
-  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* optional */ }
-  await torchOn();
-  setTimeout(torchOn, 700);
-  startLoop();
-  liveTimer = setInterval(liveUpdate, 1000);
-}
-
 async function torchOn() {
   if (!track) return;
   const caps = track.getCapabilities ? track.getCapabilities() : {};
@@ -576,25 +718,42 @@ async function torchOn() {
   try { await track.applyConstraints({ advanced: [{ torch: true }] }); $('torchWarn').hidden = true; }
   catch (e) { $('torchWarn').hidden = false; }
 }
-
 async function lockExposure() {
   if (!$('lockExp').checked || !track || !track.getCapabilities) return;
   const caps = track.getCapabilities(), s = track.getSettings();
   const tries = [];
   if (caps.exposureMode && caps.exposureMode.includes('manual') && s.exposureTime) tries.push({ exposureMode: 'manual', exposureTime: s.exposureTime });
   if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('manual') && s.colorTemperature) tries.push({ whiteBalanceMode: 'manual', colorTemperature: s.colorTemperature });
-  if (caps.focusMode && caps.focusMode.includes('manual')) tries.push({ focusMode: 'manual' });
-  for (const c of tries) { try { await track.applyConstraints({ advanced: [{ torch: true }, c] }); } catch (e) { /* not supported */ } }
+  for (const c of tries) { try { await track.applyConstraints({ advanced: [{ torch: true }, c] }); } catch (e) { } }
+}
+
+async function start() {
+  unlockAudio();
+  show('scrMeasure');
+  $('phase').textContent = t('startingCam'); $('phaseSub').textContent = '';
+  $('torchWarn').hidden = true; $('debug').hidden = !DEBUG;
+  resetMeasure();
+  setStatus('stNoFinger', '');
+  try { await pickCamera(); }
+  catch (e) { $('phase').textContent = t('camNA'); $('phaseSub').textContent = t('camAllow') + ' (' + e.name + ')'; return; }
+  running = true;
+  camOpenedAt = performance.now();
+  showCamName();
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { }
+  await torchOn();
+  setTimeout(torchOn, 700);
+  startLoop();
+  liveTimer = setInterval(liveUpdate, 1000);
 }
 
 function onFrame(now, meta) {
   if (!running) return;
   const video = $('video');
-  let t = now;
+  let tt = now;
   if (meta) {
     if (meta.mediaTime === lastMediaTime) return;
     lastMediaTime = meta.mediaTime;
-    t = meta.captureTime || (meta.mediaTime ? meta.mediaTime * 1000 : now);
+    tt = meta.captureTime || (meta.mediaTime ? meta.mediaTime * 1000 : now);
   }
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -603,92 +762,88 @@ function onFrame(now, meta) {
   for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; r2 += d[i] * d[i]; }
   r /= n; g /= n; b /= n;
   const rStd = Math.sqrt(Math.max(0, r2 / n - r * r));
-  frames.t.push(t); frames.r.push(r); frames.g.push(g); frames.b.push(b);
+  frames.t.push(tt); frames.r.push(r); frames.g.push(g); frames.b.push(b);
   if (prevR !== null && Math.abs(r - prevR) > 6) moveEvents++;
   prevR = r;
   step(r, g, b, rStd);
   drawWave();
 }
 
-// Finger covering the lens = the picture is red-dominant and fairly even. Works with or without a strong flash.
+// A finger on the lens makes the picture red-dominant and fairly even, with or without a strong flash.
 function fingerOn(r, g, b, rStd) { return r > 12 && r / (g + b + 1) > 1.2 && rStd < 0.5 * r + 12; }
 
 function step(r, g, b, rStd) {
   const now = performance.now();
   const finger = fingerOn(r, g, b, rStd);
-  setChk('cFinger', finger);
-  $('lens').classList.toggle('on', finger);
-  const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
-  setChk('cStill', finger && recent);
-  $('debug').textContent = 'v0.5.1 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+  const still = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
+  if (!finger) setStatus('stNoFinger', '');
+  else if (!still) setStatus('stMoving', 'warn');
+  else if (signalOk) setStatus('stPulse', 'good');
+  else setStatus('stFinger', 'warn');
+  if (DEBUG) $('debug').textContent = 'v' + VERSION + ' · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
     ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
-
   if (finger) lastFingerAt = now;
+
   if (phase === 'finger') {
-    $('phase').textContent = camList.length > 1 ? 'Looking for your finger' : 'Place your finger';
-    $('phaseSub').textContent = camList.length > 1 ? 'Rest your fingertip on a back camera. Checking camera ' + (camIdx + 1) + ' of ' + camList.length + '...' : 'Rest your fingertip on the back camera, lightly.';
-    $('timer').textContent = '';
-    // No finger on this camera for 2 s: try the next back camera automatically.
-    if (!finger && camList.length > 1 && !switching && now - Math.max(lastFingerAt, camOpenedAt) > 2000) { switchCamera(); return; }
-    if (finger) { if (!fingerLostAt) fingerLostAt = now; if (now - fingerLostAt > 600) { phase = 'settle'; phaseStart = now; fingerLostAt = 0; lockExposure(); } }
-    else fingerLostAt = 0;
+    const multi = camList.length > 1;
+    $('phase').textContent = t(multi ? 'lookFinger' : 'placeFinger');
+    $('phaseSub').textContent = multi ? t('lookSub', { i: camIdx + 1, n: camList.length }) : t('placeSub');
+    $('timer').textContent = fmt(durS);
+    setRing(0, 'var(--warn)');
+    if (!finger && multi && !switching && now - Math.max(lastFingerAt, camOpenedAt) > 2000) { switchCamera(); return; }
+    if (finger) {
+      if (!fingerLostAt) fingerLostAt = now;
+      if (now - fingerLostAt > 600) { phase = 'settle'; phaseStart = now; fingerLostAt = 0; lsSet('hrvCam', camList[camIdx] ? camList[camIdx].deviceId : ''); lockExposure(); }
+    } else fingerLostAt = 0;
   } else if (phase === 'settle') {
-    const left = SETTLE_S - (now - phaseStart) / 1000;
-    $('phase').textContent = 'Getting the signal ready';
-    $('phaseSub').textContent = 'Stay still. Recording starts by itself.';
-    $('timer').textContent = fmt(left);
+    const el = (now - phaseStart) / 1000;
+    $('phase').textContent = t('settle'); $('phaseSub').textContent = t('settleSub');
+    $('timer').textContent = fmt(durS);
+    setRing(el / SETTLE_S, 'var(--warn)');
     if (!finger) { phase = 'finger'; fingerLostAt = 0; return; }
-    if (left <= 0) { phase = 'record'; phaseStart = now; recordStartIdx = frames.t.length; lostTotal = 0; moveEvents = 0; cue.start(); }
+    if (el >= SETTLE_S) { phase = 'record'; phaseStart = now; recordStartIdx = frames.t.length; lostTotal = 0; moveEvents = 0; cue.start(); }
   } else if (phase === 'record') {
-    const left = durS - (now - phaseStart) / 1000;
-    $('phase').textContent = 'Recording';
-    $('phaseSub').textContent = 'Stay still and breathe normally.';
-    $('timer').textContent = fmt(left);
+    const el = (now - phaseStart) / 1000;
+    $('phase').textContent = t('record'); $('phaseSub').textContent = t('recordSub');
+    $('timer').textContent = fmt(durS - el);
+    setRing(el / durS, 'var(--good)');
     if (!finger) { if (!fingerLostAt) fingerLostAt = now; }
     else if (fingerLostAt) { lostTotal += now - fingerLostAt; fingerLostAt = 0; }
     const lostNow = lostTotal + (fingerLostAt ? now - fingerLostAt : 0);
-    if (lostNow > 3000) { stop(); showError('Your finger moved off the camera. Please try again.'); return; }
-    if (left <= 0) finish();
+    if (lostNow > 3000) { stop(); showError(t('fingerMoved') + ' ' + t('tryAgain')); return; }
+    if (el >= durS) finish();
   }
 }
 
-function estFps() {
-  const t = frames.t, n = t.length;
-  if (n < 20) return 0;
-  return 19000 / (t[n - 1] - t[n - 20]);
-}
-
+function estFps() { const tt = frames.t, n = tt.length; return n < 20 ? 0 : 19000 / (tt[n - 1] - tt[n - 20]); }
 function chooseChannel(from) {
   const r = frames.r.slice(from), g = frames.g.slice(from);
   const meanR = r.reduce((s, v) => s + v, 0) / Math.max(1, r.length);
   return meanR > 245 ? g : r;
 }
-
 function liveUpdate() {
-  if (!running || phase === 'finger') { $('liveHr').textContent = '--'; setChk('cSignal', false); return; }
+  if (!running || phase === 'finger') { $('liveHr').textContent = '--'; signalOk = false; return; }
   const n = frames.t.length;
   let from = n - 1;
   while (from > 0 && frames.t[n - 1] - frames.t[from] < 20000) from--;
-  if (frames.t[n - 1] - frames.t[from] < 8000) { $('liveHr').textContent = '--'; setChk('cSignal', false); return; }
+  if (frames.t[n - 1] - frames.t[from] < 8000) { $('liveHr').textContent = '--'; signalOk = false; return; }
   const res = PPG.analyze(frames.t.slice(from), chooseChannel(from));
-  // Live view only needs a rough check: median of the clean intervals in the last 20 s.
   const good = (res && res.intervals ? res.intervals : []).filter(x => x.valid).map(x => x.ibi);
   const frac = res && res.intervals && res.intervals.length ? good.length / res.intervals.length : 0;
-  const ok = good.length >= 5 && frac >= 0.7;
-  setChk('cSignal', ok);
-  $('liveHr').textContent = ok ? Math.round(60000 / PPG.median(good)) + ' bpm' : '--';
+  signalOk = good.length >= 5 && frac >= 0.7;
+  $('liveHr').textContent = signalOk ? String(Math.round(60000 / PPG.median(good))) : '--';
 }
-
 function drawWave() {
   const c = $('wave'), w = c.clientWidth;
-  if (c.width !== w * 2) { c.width = w * 2; c.height = 300; }
+  if (!w) return;
+  if (c.width !== w * 2) { c.width = w * 2; c.height = 220; }
   const g = c.getContext('2d'), W = c.width, H = c.height;
   g.clearRect(0, 0, W, H);
-  const t = frames.t, n = t.length;
+  const tt = frames.t, n = tt.length;
   if (n < 10) return;
   const ch = frames.r[n - 1] > 245 ? frames.g : frames.r;
   let from = n - 1;
-  while (from > 0 && t[n - 1] - t[from] < 5000) from--;
+  while (from > 0 && tt[n - 1] - tt[from] < 5000) from--;
   const ys = [];
   for (let i = from; i < n; i++) {
     let s = 0, k = 0;
@@ -696,11 +851,11 @@ function drawWave() {
     ys.push(-(ch[i] - s / k));
   }
   let lo = Math.min(...ys), hi = Math.max(...ys);
-  if (hi - lo < 0.5) { hi = lo + 0.5; }
-  g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--wave').trim() || '#d63a33';
+  if (hi - lo < 0.5) hi = lo + 0.5;
+  g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d63a33';
   g.lineWidth = 4; g.lineJoin = 'round'; g.beginPath();
   for (let i = 0; i < ys.length; i++) {
-    const x = (t[from + i] - (t[n - 1] - 5000)) / 5000 * W;
+    const x = (tt[from + i] - (tt[n - 1] - 5000)) / 5000 * W;
     const y = H - 12 - (ys[i] - lo) / (hi - lo) * (H - 24);
     if (i) g.lineTo(x, y); else g.moveTo(x, y);
   }
@@ -712,7 +867,7 @@ function stop() {
   loopId++;
   clearInterval(liveTimer);
   if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (stream) stream.getTracks().forEach(x => x.stop());
   stream = null; track = null;
   if (wakeLock) { try { wakeLock.release(); } catch (e) { } wakeLock = null; }
 }
@@ -721,14 +876,13 @@ function showError(msg) {
   cue.fail();
   show('scrResult');
   lastResult = null;
-  $('qBadge').className = 'badge poor'; $('qBadge').textContent = 'Not saved';
+  $('qBadge').className = 'badge poor'; $('qBadge').textContent = t('notSaved');
   $('rHr').textContent = '--'; $('rRm').textContent = '--';
   $('rDetail').textContent = msg;
   $('poorMsg').hidden = false; $('btnSend').hidden = true; $('btnSendAnyway').hidden = true;
+  $('trendCard').hidden = true; $('chartCard').hidden = true;
   $('rDebug').textContent = '';
   drawTacho([]);
-  drawPulse(null);
-  drawHr(null);
 }
 
 function finish() {
@@ -738,59 +892,37 @@ function finish() {
   stop();
   const score = r => (!r || r.error) ? -1 : r.quality * 1000 + r.valid;
   const res = score(resG) > score(resR) ? Object.assign(resG, { channel: 'green' }) : Object.assign(resR, { channel: 'red' });
-  if (res.error) { showError(res.error + '. Please try again.'); return; }
+  if (res.error) { showError(t(res.error) + ' ' + t('tryAgain')); return; }
   res.grade = PPG.grade(res);
   res.when = new Date();
   res.moves = moveEvents;
   lastResult = res;
   if (res.grade === 'poor') cue.fail(); else cue.done();
-  renderResult(res);
   saveHistory(res);
+  renderResult(res);
 }
 
 function renderResult(res) {
   show('scrResult');
-  const labels = { good: 'Good signal', ok: 'Acceptable', poor: 'Poor signal' };
-  $('qBadge').className = 'badge ' + res.grade; $('qBadge').textContent = labels[res.grade];
+  $('qBadge').className = 'badge ' + res.grade; $('qBadge').textContent = t(res.grade);
   $('rHr').textContent = Math.round(res.hr);
   $('rRm').textContent = res.rmssd.toFixed(1);
-  $('rDetail').textContent = 'ln RMSSD ' + res.lnRmssd.toFixed(2) + ' · ' + res.valid + ' of ' + res.total +
-    ' beats used (' + Math.round(res.quality * 100) + '%) · ' + Math.round(res.duration) + ' s';
-  $('rDebug').textContent = 'fps ' + res.fps.toFixed(1) + ' · channel ' + res.channel + ' · SDNN ' + res.sdnn.toFixed(1) +
+  $('rDetail').textContent = t('detail', { ln: res.lnRmssd.toFixed(2), v: res.valid, t: res.total, q: Math.round(res.quality * 100), s: Math.round(res.duration) });
+  $('rDebug').textContent = 'v' + VERSION + ' · fps ' + res.fps.toFixed(1) + ' · channel ' + res.channel + ' · SDNN ' + res.sdnn.toFixed(1) +
     ' ms · movements ' + res.moves + ' · period ' + res.periodS.toFixed(2) + ' s';
   const poor = res.grade === 'poor';
   $('poorMsg').hidden = !poor;
   $('btnSend').hidden = !FORM_URL || poor;
   $('btnSendAnyway').hidden = !FORM_URL || !poor;
+  $('chartCard').hidden = false;
+  $('trendCard').hidden = poor;
   drawTacho(res.intervals);
   drawPulse(res);
   drawHr(res);
+  if (!poor) drawTrend();
 }
 
-function drawTacho(list) {
-  const c = $('tacho'), w = c.clientWidth || 300;
-  c.width = w * 2; c.height = 280;
-  const g = c.getContext('2d'), W = c.width, H = c.height;
-  g.clearRect(0, 0, W, H);
-  if (!list || !list.length) return;
-  const css = getComputedStyle(document.documentElement);
-  const v = list.map(x => x.ibi);
-  const lo = Math.min(...v), hi = Math.max(...v), span = Math.max(50, hi - lo);
-  const t0 = list[0].t, t1 = list[list.length - 1].t || t0 + 1;
-  g.font = '22px ' + css.getPropertyValue('--font');
-  g.fillStyle = css.getPropertyValue('--muted');
-  g.fillText(Math.round(hi) + ' ms', 8, 26);
-  g.fillText(Math.round(lo) + ' ms', 8, H - 10);
-  list.forEach(x => {
-    const px = 90 + (x.t - t0) / (t1 - t0 || 1) * (W - 110);
-    const py = H - 20 - (x.ibi - lo) / span * (H - 50);
-    g.fillStyle = x.valid ? css.getPropertyValue('--accent') : css.getPropertyValue('--muted');
-    g.globalAlpha = x.valid ? 1 : 0.5;
-    g.beginPath(); g.arc(px, py, 5, 0, Math.PI * 2); g.fill();
-  });
-  g.globalAlpha = 1;
-}
-
+/* ---- Charts ---- */
 function chartCtx(id) {
   const c = $(id), w = c.clientWidth || 300, h = Number(c.getAttribute('height')) || 140;
   c.width = w * 2; c.height = h * 2;
@@ -798,8 +930,22 @@ function chartCtx(id) {
   g.clearRect(0, 0, c.width, c.height);
   return { g: g, W: c.width, H: c.height, css: getComputedStyle(document.documentElement) };
 }
-
-// Filtered pulse wave of the last 10 s with every detected beat marked.
+function drawTacho(list) {
+  const { g, W, H, css } = chartCtx('tacho');
+  if (!list || !list.length) return;
+  const v = list.map(x => x.ibi);
+  const lo = Math.min(...v), hi = Math.max(...v), span = Math.max(50, hi - lo);
+  const t0 = list[0].t, t1 = list[list.length - 1].t || t0 + 1;
+  g.font = '22px ' + css.getPropertyValue('--font'); g.fillStyle = css.getPropertyValue('--muted');
+  g.fillText(Math.round(hi) + ' ms', 8, 26); g.fillText(Math.round(lo) + ' ms', 8, H - 10);
+  list.forEach(x => {
+    const px = 90 + (x.t - t0) / (t1 - t0 || 1) * (W - 110), py = H - 20 - (x.ibi - lo) / span * (H - 50);
+    g.fillStyle = x.valid ? css.getPropertyValue('--accent') : css.getPropertyValue('--muted');
+    g.globalAlpha = x.valid ? 1 : 0.5;
+    g.beginPath(); g.arc(px, py, 5, 0, Math.PI * 2); g.fill();
+  });
+  g.globalAlpha = 1;
+}
 function drawPulse(res) {
   const { g, W, H, css } = chartCtx('pulseChart');
   if (!res || !res.wave) return;
@@ -812,90 +958,151 @@ function drawPulse(res) {
   g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 4; g.lineJoin = 'round';
   g.beginPath(); seg.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))); g.stroke();
   g.fillStyle = css.getPropertyValue('--fg');
-  res.beatT.forEach(t => {
-    const i = Math.round(t * fs) - from;
+  res.beatT.forEach(bt => {
+    const i = Math.round(bt * fs) - from;
     if (i < 0 || i >= win) return;
-    let k = i, end = Math.min(win - 1, i + Math.round(0.3 * fs));   // mark the peak just after the upstroke
+    let k = i; const end = Math.min(win - 1, i + Math.round(0.3 * fs));
     for (let j = i; j <= end; j++) if (seg[j] > seg[k]) k = j;
     g.beginPath(); g.arc(X(k), Y(seg[k]), 6, 0, Math.PI * 2); g.fill();
   });
 }
-
-// Beat-by-beat heart rate across the recording, with average line.
 function drawHr(res) {
   const { g, W, H, css } = chartCtx('hrChart');
   if (!res || !res.intervals) { $('hrNote').textContent = ''; return; }
   const pts = res.intervals.filter(x => x.valid).map(x => ({ t: x.t, hr: 60000 / x.ibi }));
   if (pts.length < 2) return;
   const hrs = pts.map(p => p.hr), avg = 60000 / res.meanIbi;
-  const mn = Math.min(...hrs), mx = Math.max(...hrs);
-  const lo = Math.floor(mn - 3), hi = Math.ceil(mx + 3);
+  const mn = Math.min(...hrs), mx = Math.max(...hrs), lo = Math.floor(mn - 3), hi = Math.ceil(mx + 3);
   const L = 70, R = 12, T = 14, B = 34, t0 = pts[0].t, t1 = pts[pts.length - 1].t;
-  const X = t => L + (t - t0) / ((t1 - t0) || 1) * (W - L - R), Y = v => T + (hi - v) / ((hi - lo) || 1) * (H - T - B);
+  const X = x => L + (x - t0) / ((t1 - t0) || 1) * (W - L - R), Y = v => T + (hi - v) / ((hi - lo) || 1) * (H - T - B);
   g.font = '22px ' + css.getPropertyValue('--font'); g.fillStyle = css.getPropertyValue('--muted');
   g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 2;
-  [hi, Math.round((hi + lo) / 2), lo].forEach(v => {
-    g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke();
-    g.fillText(String(v), 6, Y(v) + 8);
-  });
+  [hi, Math.round((hi + lo) / 2), lo].forEach(v => { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText(String(v), 6, Y(v) + 8); });
   g.fillText('0 s', L, H - 6);
   const endLbl = Math.round(t1 - t0) + ' s'; g.fillText(endLbl, W - R - g.measureText(endLbl).width, H - 6);
   g.setLineDash([10, 8]); g.strokeStyle = css.getPropertyValue('--muted');
   g.beginPath(); g.moveTo(L, Y(avg)); g.lineTo(W - R, Y(avg)); g.stroke(); g.setLineDash([]);
   g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 4; g.lineJoin = 'round';
   g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(X(p.t), Y(p.hr)) : g.moveTo(X(p.t), Y(p.hr))); g.stroke();
-  $('hrNote').textContent = 'Average ' + Math.round(avg) + ' bpm (dashed line) · lowest ' + Math.round(mn) + ' · highest ' + Math.round(mx) +
-    ' bpm. The rise and fall with your breathing is normal and is what HRV measures.';
+  $('hrNote').textContent = t('hrNote', { a: Math.round(avg), lo: Math.round(mn), hi: Math.round(mx) });
 }
 
-function sendToForm() {
-  if (!lastResult || !FORM_URL) return;
-  const url = FORM_URL.replace('HRVRMSSD', lastResult.rmssd.toFixed(1)).replace('HRVRHR', String(Math.round(lastResult.hr)));
-  location.href = url;
+/* ---- History & 7-day trend (stored on this phone, per athlete) ---- */
+const HKEY = () => 'hrvHistory:' + (NAME || 'me');
+function loadHistory() {
+  try {
+    let h = JSON.parse(lsGet(HKEY(), 'null'));
+    if (!h) { h = JSON.parse(lsGet('hrvHistory', '[]')) || []; }   // results saved by older versions
+    return Array.isArray(h) ? h : [];
+  } catch (e) { return []; }
 }
-
-function resultText(r) {
-  return 'Morning HRV ' + r.when.toLocaleString() + (NAME ? ' · ' + NAME : '') + '\nHR ' + Math.round(r.hr) + ' bpm, RMSSD ' +
-    r.rmssd.toFixed(1) + ' ms, ln RMSSD ' + r.lnRmssd.toFixed(2) + ', quality ' + Math.round(r.quality * 100) + '% (' + r.grade + '), ' +
-    r.valid + ' beats, ' + r.fps.toFixed(1) + ' fps';
-}
-
-function downloadCsv() {
-  if (!lastResult) return;
-  const rows = ['beat,time_s,ibi_ms,valid'].concat(lastResult.intervals.map((x, i) =>
-    (i + 1) + ',' + x.t.toFixed(3) + ',' + x.ibi.toFixed(1) + ',' + (x.valid ? 1 : 0)));
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'hrv_' + lastResult.when.toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-}
-
-function loadHistory() { try { return JSON.parse(localStorage.getItem('hrvHistory') || '[]'); } catch (e) { return []; } }
 function saveHistory(r) {
   const h = loadHistory();
-  h.unshift({ when: r.when.toISOString(), hr: Math.round(r.hr), rmssd: +r.rmssd.toFixed(1), ln: +r.lnRmssd.toFixed(2), q: r.grade });
-  try { localStorage.setItem('hrvHistory', JSON.stringify(h.slice(0, 30))); } catch (e) { }
+  h.unshift({ when: r.when.toISOString(), hr: Math.round(r.hr), rmssd: +r.rmssd.toFixed(1), ln: +r.lnRmssd.toFixed(3), q: r.grade, dur: Math.round(r.duration) });
+  lsSet(HKEY(), JSON.stringify(h.slice(0, 90)));
   renderHistory();
 }
 function renderHistory() {
   const h = loadHistory();
   $('histBox').hidden = !h.length;
-  $('histTable').innerHTML = '<tr><th>Date</th><th>HR</th><th>RMSSD</th><th>ln</th><th>Signal</th></tr>' +
-    h.map(x => '<tr><td>' + new Date(x.when).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' +
-      new Date(x.when).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + x.hr +
-      '</td><td>' + x.rmssd + '</td><td>' + x.ln + '</td><td>' + x.q + '</td></tr>').join('');
+  const q = { good: t('good'), ok: t('ok'), poor: t('poor') };
+  $('histTable').innerHTML = '<tr><th>' + t('thDate') + '</th><th>HR</th><th>RMSSD</th><th>' + t('thSignal') + '</th></tr>' +
+    h.slice(0, 30).map(x => {
+      const d = new Date(x.when);
+      return '<tr><td>' + d.toLocaleDateString(LOCALE(), { day: '2-digit', month: 'short' }) + ' ' +
+        d.toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + x.hr + '</td><td>' + x.rmssd + '</td><td>' + (q[x.q] || x.q) + '</td></tr>';
+    }).join('');
+}
+function dayKey(d) { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+function dailySeries() {
+  const byDay = {};
+  loadHistory().filter(x => x.q !== 'poor' && x.ln).slice().reverse().forEach(x => { byDay[dayKey(x.when)] = x; }); // latest reading per day
+  return Object.keys(byDay).sort().map(k => ({ day: k, ln: byDay[k].ln, rmssd: byDay[k].rmssd }));
+}
+function drawTrend() {
+  const s = dailySeries();
+  if (!s.length) { $('trendCard').hidden = true; return; }
+  const cur = s[s.length - 1];
+  const prev = s.slice(0, -1).slice(-30);
+  const need = Math.max(0, 3 - prev.length);
+  let low = null, high = null, status = null;
+  if (!need) {
+    const ls = prev.map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
+    const sd = Math.sqrt(ls.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, ls.length - 1));
+    const half = Math.max(0.5 * sd, 0.04);
+    low = m - half; high = m + half;
+    status = cur.ln < low ? 'low' : cur.ln > high ? 'high' : 'normal';
+  }
+  const msg = $('trendMsg');
+  if (need) { msg.className = 'msg info'; msg.textContent = t('trendNeed', { n: need }); }
+  else { msg.className = 'msg ' + status; msg.textContent = t({ low: 'trendLow', high: 'trendHigh', normal: 'trendNormal' }[status]); }
+  $('trendNote').textContent = need ? '' : t('trendNote');
+
+  const pts = s.slice(-7);
+  const { g, W, H, css } = chartCtx('trendChart');
+  const vals = pts.map(p => p.rmssd).concat(low !== null ? [Math.exp(low), Math.exp(high)] : []);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const padV = Math.max(4, (hi - lo) * 0.2); lo = Math.max(0, lo - padV); hi = hi + padV;
+  const L = 70, R = 24, T = 18, B = 44;
+  const X = i => pts.length === 1 ? (L + W - R) / 2 : L + i / (pts.length - 1) * (W - L - R);
+  const Y = v => T + (hi - v) / ((hi - lo) || 1) * (H - T - B);
+  g.font = '22px ' + css.getPropertyValue('--font');
+  if (low !== null) {
+    g.fillStyle = css.getPropertyValue('--good-soft');
+    g.fillRect(L, Y(Math.exp(high)), W - L - R, Y(Math.exp(low)) - Y(Math.exp(high)));
+  }
+  g.fillStyle = css.getPropertyValue('--muted');
+  g.fillText(Math.round(hi) + ' ms', 4, T + 16); g.fillText(Math.round(lo) + ' ms', 4, H - B);
+  g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 4; g.lineJoin = 'round';
+  g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(X(i), Y(p.rmssd)) : g.moveTo(X(i), Y(p.rmssd))); g.stroke();
+  pts.forEach((p, i) => {
+    const last = i === pts.length - 1;
+    g.fillStyle = css.getPropertyValue(last ? '--accent' : '--fg');
+    g.beginPath(); g.arc(X(i), Y(p.rmssd), last ? 11 : 6, 0, Math.PI * 2); g.fill();
+    const lbl = new Date(p.day + 'T12:00:00').toLocaleDateString(LOCALE(), { weekday: 'short' });
+    g.fillStyle = css.getPropertyValue('--muted');
+    g.fillText(lbl, X(i) - g.measureText(lbl).width / 2, H - 10);
+  });
 }
 
-$('btnStart').addEventListener('click', start);
-$('btnTestCue').addEventListener('click', () => {
-  unlockAudio();
-  tones([[880, 160, 90], [1320, 260]]);
-  if (!('vibrate' in navigator)) { $('cueMsg').textContent = 'This browser cannot vibrate the phone.'; return; }
-  let ok = false;
-  try { ok = navigator.vibrate([400, 150, 400]); } catch (e) { ok = false; }
-  $('cueMsg').textContent = ok ? 'Vibration sent. If you felt nothing, turn on vibration in phone settings.' : 'The phone blocked vibration.';
+/* ---- Results out ---- */
+function sendToForm() {
+  if (!lastResult || !FORM_URL) return;
+  location.href = FORM_URL.replace('HRVRMSSD', lastResult.rmssd.toFixed(1)).replace('HRVRHR', String(Math.round(lastResult.hr)));
+}
+function resultText(r) {
+  return 'Morning HRV ' + r.when.toLocaleString() + (NAME ? ' · ' + NAME : '') + '\nHR ' + Math.round(r.hr) + ' bpm, RMSSD ' +
+    r.rmssd.toFixed(1) + ' ms, ln RMSSD ' + r.lnRmssd.toFixed(2) + ', quality ' + Math.round(r.quality * 100) + '% (' + r.grade + '), ' +
+    r.valid + ' beats, ' + r.fps.toFixed(1) + ' fps';
+}
+function downloadCsv() {
+  if (!lastResult) return;
+  const rows = ['beat,time_s,ibi_ms,valid'].concat(lastResult.intervals.map((x, i) => (i + 1) + ',' + x.t.toFixed(3) + ',' + x.ibi.toFixed(1) + ',' + (x.valid ? 1 : 0)));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+  a.download = 'hrv_' + lastResult.when.toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---- Install as an app ---- */
+let deferredPrompt = null;
+const standalone = window.matchMedia && matchMedia('(display-mode: standalone)').matches;
+if (standalone) $('installHow').hidden = true;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; if (!standalone) $('installBox').hidden = false; });
+$('btnInstall').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  try { await deferredPrompt.userChoice; } catch (e) { }
+  deferredPrompt = null; $('installBox').hidden = true;
 });
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---- Wiring ---- */
+if (!FORM_URL) $('noSend').hidden = false;
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('notSupported').hidden = false; $('btnStart').disabled = true; }
+document.querySelectorAll('#durSeg button').forEach(b => b.addEventListener('click', () => setDur(Number(b.dataset.d))));
+$('btnLang').addEventListener('click', () => { LANG = LANG === 'hi' ? 'en' : 'hi'; lsSet('hrvLang', LANG); applyLang(); });
+$('btnStart').addEventListener('click', start);
 $('btnSwitch').addEventListener('click', switchCamera);
 $('btnStop').addEventListener('click', () => { stop(); show('scrStart'); });
 $('btnAgain').addEventListener('click', () => show('scrStart'));
@@ -905,12 +1112,25 @@ $('btnCsv').addEventListener('click', downloadCsv);
 $('btnCopy').addEventListener('click', () => {
   if (!lastResult) return;
   const txt = resultText(lastResult);
-  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => { $('btnCopy').textContent = 'Copied'; }, () => { prompt('Copy:', txt); });
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => { $('btnCopy').textContent = t('copied'); }, () => { });
 });
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden && running) { stop(); show('scrStart'); }
+$('btnTestCue').addEventListener('click', () => {
+  unlockAudio();
+  tones([[880, 160, 90], [1320, 260]]);
+  if (!('vibrate' in navigator)) { $('cueMsg').textContent = t('cueNo'); return; }
+  let ok = false; try { ok = navigator.vibrate([400, 150, 400]); } catch (e) { ok = false; }
+  $('cueMsg').textContent = t(ok ? 'cueSent' : 'cueBlocked');
 });
-renderHistory();
+$('btnResetCam').addEventListener('click', () => { lsDel('hrvCam'); $('camMsg').textContent = t('camReset'); });
+$('btnForget').addEventListener('click', () => { lsDel('hrvProfile'); profile = {}; FORM_URL = ''; NAME = ''; $('noSend').hidden = false; applyLang(); });
+let verTaps = 0;
+$('ver').addEventListener('click', () => {   // tap the version 5 times to show technical details while measuring
+  if (++verTaps >= 5) { verTaps = 0; DEBUG = !DEBUG; lsSet('hrvDebug', DEBUG ? '1' : ''); $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : ''); }
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && running) { stop(); show('scrStart'); } });
+$('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : '');
+setDur([30, 60, 120, 180].includes(durS) ? durS : 60);
+applyLang();
 </script>
 </body>
 </html>
