@@ -100,12 +100,13 @@ details summary{cursor:pointer;color:var(--muted)}
       </div>
       <label class="note"><input type="checkbox" id="lockExp"> Lock camera exposure (try only if the pulse is weak)</label>
       <label class="note"><input type="checkbox" id="sound" checked> Beep and vibrate at start and finish</label>
+      <div class="row"><button id="btnTestCue" type="button">Test beep &amp; vibration</button><span class="note" id="cueMsg"></span></div>
     </div>
     <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
     <div class="warnbox" id="notSupported" hidden></div>
     <button class="primary" id="btnStart">Start measurement</button>
     <div class="note" id="durNote">30 sec gives a quick check. For daily HRV, 1 min or longer is more reliable.</div>
-    <div class="debug">App version 0.5</div>
+    <div class="debug">App version 0.5.1</div>
     <details class="card" id="histBox">
       <summary>My recent results on this phone</summary>
       <div class="tablewrap"><table id="histTable"></table></div>
@@ -465,11 +466,16 @@ function tones(list) { // list of [frequencyHz, durationMs, gapMs]
     t += (d + (gap || 0)) / 1000;
   }
 }
-function buzz(pattern) { if ($('sound').checked && navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) { } } }
+let lastBuzzOk = null;
+function buzz(pattern) {
+  if (!$('sound').checked) return;
+  if (!('vibrate' in navigator)) { lastBuzzOk = false; return; }
+  try { lastBuzzOk = navigator.vibrate(pattern); } catch (e) { lastBuzzOk = false; }
+}
 const cue = {
-  start: () => { tones([[880, 180]]); buzz(150); },
-  done: () => { tones([[880, 160, 90], [1320, 260]]); buzz([200, 100, 200]); },
-  fail: () => { tones([[300, 700]]); buzz(600); }
+  start: () => { tones([[880, 180]]); buzz(300); },
+  done: () => { tones([[880, 160, 90], [1320, 260]]); buzz([400, 150, 400]); },
+  fail: () => { tones([[300, 700]]); buzz(900); }
 };
 
 /* Camera handling: use ONE back camera, preferably the one that controls the flash. */
@@ -614,7 +620,7 @@ function step(r, g, b, rStd) {
   $('lens').classList.toggle('on', finger);
   const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
   setChk('cStill', finger && recent);
-  $('debug').textContent = 'v0.5 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+  $('debug').textContent = 'v0.5.1 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
     ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
 
   if (finger) lastFingerAt = now;
@@ -882,6 +888,14 @@ function renderHistory() {
 }
 
 $('btnStart').addEventListener('click', start);
+$('btnTestCue').addEventListener('click', () => {
+  unlockAudio();
+  tones([[880, 160, 90], [1320, 260]]);
+  if (!('vibrate' in navigator)) { $('cueMsg').textContent = 'This browser cannot vibrate the phone.'; return; }
+  let ok = false;
+  try { ok = navigator.vibrate([400, 150, 400]); } catch (e) { ok = false; }
+  $('cueMsg').textContent = ok ? 'Vibration sent. If you felt nothing, turn on vibration in phone settings.' : 'The phone blocked vibration.';
+});
 $('btnSwitch').addEventListener('click', switchCamera);
 $('btnStop').addEventListener('click', () => { stop(); show('scrStart'); });
 $('btnAgain').addEventListener('click', () => show('scrStart'));
