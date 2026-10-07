@@ -60,7 +60,15 @@ th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
 th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
 .tablewrap{overflow-x:auto}
 details summary{cursor:pointer;color:var(--muted)}
-video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.guide{display:flex;gap:14px;align-items:center}
+.lens{position:relative;width:118px;height:118px;flex:none;border-radius:50%;overflow:hidden;border:4px solid var(--line);background:#000}
+.lens.on{border-color:var(--good)}
+.lens video{width:100%;height:100%;object-fit:cover;display:block}
+.lens svg{position:absolute;inset:0;width:100%;height:100%}
+.guidetext{display:flex;flex-direction:column;gap:6px;min-width:0}
+.guidetext b{font-size:1rem}
+.guidetext span{font-size:.88rem;color:var(--muted)}
+.guidetext button{padding:8px 12px;font-size:.9rem;align-self:flex-start}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -78,24 +86,26 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
       <ol class="steps">
         <li>Do it <b>right after waking</b> and using the toilet. Same time every day.</li>
         <li><b>Lie on your back</b> and rest quietly for 1 minute.</li>
-        <li>Cover the <b>back camera and the flash</b> with your index fingertip. Touch lightly, do not press.</li>
+        <li>Put your index fingertip on the <b>main back camera</b> (the one right next to the flash) so it also covers the flash. Touch lightly, do not press. The next screen shows you the camera picture.</li>
         <li>Keep your hand resting on your chest or the bed. <b>Stay still</b> and breathe normally.</li>
       </ol>
     </div>
     <div class="card stack">
       <div class="label">Recording length</div>
       <div class="seg" id="durSeg">
-        <button data-d="60">1 min</button>
-        <button data-d="120" class="on">2 min</button>
+        <button data-d="30">30 sec</button>
+        <button data-d="60" class="on">1 min</button>
+        <button data-d="120">2 min</button>
         <button data-d="180">3 min</button>
       </div>
-      <label class="note"><input type="checkbox" id="lockExp" checked> Lock camera exposure (recommended)</label>
+      <label class="note"><input type="checkbox" id="lockExp"> Lock camera exposure (try only if the pulse is weak)</label>
       <label class="note"><input type="checkbox" id="sound" checked> Beep and vibrate at start and finish</label>
     </div>
     <div class="warnbox" id="noSend" hidden>Open this page from your <b>personal HRV link</b> so your result goes into your wellness form automatically. You can still measure and see your result here.</div>
     <div class="warnbox" id="notSupported" hidden></div>
     <button class="primary" id="btnStart">Start measurement</button>
-    <div class="debug">App version 0.3</div>
+    <div class="note" id="durNote">30 sec gives a quick check. For daily HRV, 1 min or longer is more reliable.</div>
+    <div class="debug">App version 0.4</div>
     <details class="card" id="histBox">
       <summary>My recent results on this phone</summary>
       <div class="tablewrap"><table id="histTable"></table></div>
@@ -112,6 +122,17 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
         </div>
         <div class="timer" id="timer"></div>
       </div>
+      <div class="guide">
+        <div class="lens" id="lens">
+          <video id="video" playsinline muted></video>
+          <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 78 C20 58 14 40 26 30 C35 23 45 27 50 36 C55 27 65 23 74 30 C86 40 80 58 50 78 Z" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3"/></svg>
+        </div>
+        <div class="guidetext">
+          <b id="camName">Main camera</b>
+          <span id="camHint">This is what the camera sees. Cover it with your fingertip until the circle turns fully red.</span>
+          <button id="btnSwitch" type="button">Switch camera</button>
+        </div>
+      </div>
       <canvas id="wave" height="150"></canvas>
       <div class="checks">
         <div class="chk" id="cFinger">Finger</div>
@@ -120,7 +141,7 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
       </div>
       <div class="row"><span class="sub">Heart rate now</span><span class="phase" id="liveHr">--</span></div>
     </div>
-    <div class="warnbox" id="torchWarn" hidden>The flash could not be switched on. Measure near a bright light, or open this page in Chrome.</div>
+    <div class="warnbox" id="torchWarn" hidden>The flash is not on for this camera. Tap <b>Switch camera</b> and choose the one next to the flash.</div>
     <button id="btnStop">Cancel</button>
     <div class="debug" id="debug"></div>
   </section>
@@ -150,7 +171,6 @@ video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
       </div>
     </details>
   </section>
-  <video id="video" playsinline muted></video>
 </div>
 
 <script>
@@ -392,10 +412,11 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const FORM_URL = params.get('f') || '';
 const NAME = params.get('n') || '';
-const SETTLE_S = 15;
+const SETTLE_S = 10;
 
-let durS = 120, stream = null, track = null, running = false, wakeLock = null;
+let durS = 60, stream = null, track = null, running = false, wakeLock = null;
 let frames = null, phase = 'idle', phaseStart = 0, fingerLostAt = 0, lostTotal = 0, recordStartIdx = 0;
+let camList = [], camIdx = 0, loopId = 0;
 let lastMediaTime = -1, lastResult = null, liveTimer = null, moveEvents = 0, prevR = null;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -444,37 +465,90 @@ const cue = {
   fail: () => { tones([[300, 700]]); buzz(600); }
 };
 
+/* Camera handling: use ONE back camera, preferably the one that controls the flash. */
+function camNum(label) { const m = /(\d+)/.exec(label || ''); return m ? Number(m[1]) : 99; }
+function hasTorch(t) { try { return !!(t && t.getCapabilities && t.getCapabilities().torch); } catch (e) { return false; } }
+async function listBackCams() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const back = devs.filter(d => !/front|user/i.test(d.label));
+  const list = back.length ? back : devs;
+  return list.sort((a, b) => camNum(a.label) - camNum(b.label));
+}
+async function openCam(deviceId) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  const v = { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60 } };
+  if (deviceId) v.deviceId = { exact: deviceId }; else v.facingMode = { ideal: 'environment' };
+  stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: v });
+  track = stream.getVideoTracks()[0];
+  const video = $('video');
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+}
+function savedCam() { try { return localStorage.getItem('hrvCam') || ''; } catch (e) { return ''; } }
+function saveCam(id) { try { localStorage.setItem('hrvCam', id); } catch (e) { } }
+function showCamName() {
+  const n = camList.length;
+  $('camName').textContent = n > 1 ? 'Camera ' + (camIdx + 1) + ' of ' + n + (hasTorch(track) ? ' (with flash)' : ' (no flash)') : 'Back camera';
+  $('btnSwitch').hidden = n < 2;
+}
+async function pickCamera() {
+  await openCam(savedCam() || null);           // also asks for permission
+  camList = await listBackCams();
+  const cur = track && track.getSettings ? track.getSettings().deviceId : '';
+  let idx = camList.findIndex(c => c.deviceId === cur);
+  if (idx >= 0 && hasTorch(track) && savedCam()) { camIdx = idx; return; }
+  for (let i = 0; i < camList.length; i++) {      // first camera that can switch the flash on
+    try { await openCam(camList[i].deviceId); } catch (e) { continue; }
+    if (hasTorch(track)) { camIdx = i; saveCam(camList[i].deviceId); return; }
+  }
+  camIdx = 0;
+  if (camList[0]) await openCam(camList[0].deviceId);
+}
+function resetMeasure() {
+  frames = { t: [], r: [], g: [], b: [] };
+  phase = 'finger'; phaseStart = performance.now(); lostTotal = 0; fingerLostAt = 0; moveEvents = 0; prevR = null; lastMediaTime = -1;
+  $('liveHr').textContent = '--'; setChk('cSignal', false);
+}
+function startLoop() {
+  const id = ++loopId, video = $('video');
+  const cb = (now, meta) => {
+    if (id !== loopId || !running) return;
+    onFrame(now, meta);
+    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(cb); else requestAnimationFrame(ts => cb(ts, null));
+  };
+  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(cb); else requestAnimationFrame(ts => cb(ts, null));
+}
+async function switchCamera() {
+  if (camList.length < 2) return;
+  loopId++;
+  camIdx = (camIdx + 1) % camList.length;
+  try { await openCam(camList[camIdx].deviceId); } catch (e) { return; }
+  saveCam(camList[camIdx].deviceId);
+  resetMeasure();
+  showCamName();
+  await torchOn(); setTimeout(torchOn, 700);
+  startLoop();
+}
+
 async function start() {
   unlockAudio();
   show('scrMeasure');
   $('phase').textContent = 'Starting camera...'; $('phaseSub').textContent = ''; $('timer').textContent = '';
-  $('torchWarn').hidden = true; $('liveHr').textContent = '--';
-  frames = { t: [], r: [], g: [], b: [] };
-  phase = 'finger'; phaseStart = performance.now(); lostTotal = 0; fingerLostAt = 0; moveEvents = 0; prevR = null; lastMediaTime = -1;
+  $('torchWarn').hidden = true;
+  resetMeasure();
   try {
-    // Ask firmly for 60 fps first; if the phone refuses, fall back to whatever it offers.
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
-        facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { min: 50, ideal: 60 } } });
-    } catch (e1) {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
-        facingMode: { ideal: 'environment' }, width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 60, max: 60 } } });
-    }
+    await pickCamera();
   } catch (e) {
     $('phase').textContent = 'Camera not available';
     $('phaseSub').textContent = 'Allow camera access for this page, then try again. (' + e.name + ')';
     return;
   }
-  track = stream.getVideoTracks()[0];
-  const video = $('video');
-  video.srcObject = stream;
-  await video.play().catch(() => {});
   running = true;
+  showCamName();
   try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* optional */ }
   await torchOn();
   setTimeout(torchOn, 700);
-  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onFrame);
-  else requestAnimationFrame(() => onFrame(performance.now(), null));
+  startLoop();
   liveTimer = setInterval(liveUpdate, 1000);
 }
 
@@ -501,12 +575,12 @@ function onFrame(now, meta) {
   const video = $('video');
   let t = now;
   if (meta) {
-    if (meta.mediaTime === lastMediaTime) { video.requestVideoFrameCallback(onFrame); return; }
+    if (meta.mediaTime === lastMediaTime) return;
     lastMediaTime = meta.mediaTime;
     t = meta.captureTime || (meta.mediaTime ? meta.mediaTime * 1000 : now);
   }
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const d = ctx.getImageData(5, 4, 30, 22).data;
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   let r = 0, g = 0, b = 0, r2 = 0;
   const n = d.length / 4;
   for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; r2 += d[i] * d[i]; }
@@ -517,25 +591,26 @@ function onFrame(now, meta) {
   prevR = r;
   step(r, g, b, rStd);
   drawWave();
-  if (meta) video.requestVideoFrameCallback(onFrame); else requestAnimationFrame(ts => onFrame(ts, null));
 }
 
-function fingerOn(r, g, b, rStd) { return r > 60 && r > 1.6 * g && r > 1.6 * b && rStd < 40; }
+// Finger covering the lens = the picture is red-dominant and fairly even. Works with or without a strong flash.
+function fingerOn(r, g, b, rStd) { return r > 25 && r > 1.3 * (g + b) / 2 + 10 && r / (g + b + 1) > 1.1 && rStd < 0.5 * r + 12; }
 
 function step(r, g, b, rStd) {
   const now = performance.now();
   const finger = fingerOn(r, g, b, rStd);
   setChk('cFinger', finger);
+  $('lens').classList.toggle('on', finger);
   const recent = frames.r.length > 30 ? Math.abs(frames.r[frames.r.length - 1] - frames.r[frames.r.length - 30]) < 15 : true;
   setChk('cStill', finger && recent);
-  $('debug').textContent = 'v0.3 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
+  $('debug').textContent = 'v0.4 · R ' + r.toFixed(0) + ' G ' + g.toFixed(0) + ' B ' + b.toFixed(0) + ' sd ' + rStd.toFixed(1) +
     ' | ' + estFps().toFixed(0) + ' fps | frames ' + frames.t.length;
 
   if (phase === 'finger') {
     $('phase').textContent = 'Place your finger';
-    $('phaseSub').textContent = 'Cover the back camera and flash lightly.';
+    $('phaseSub').textContent = 'Cover the camera shown in the circle, lightly.';
     $('timer').textContent = '';
-    if (finger) { if (!fingerLostAt) fingerLostAt = now; if (now - fingerLostAt > 1500) { phase = 'settle'; phaseStart = now; fingerLostAt = 0; lockExposure(); } }
+    if (finger) { if (!fingerLostAt) fingerLostAt = now; if (now - fingerLostAt > 1000) { phase = 'settle'; phaseStart = now; fingerLostAt = 0; lockExposure(); } }
     else fingerLostAt = 0;
   } else if (phase === 'settle') {
     const left = SETTLE_S - (now - phaseStart) / 1000;
@@ -614,6 +689,7 @@ function drawWave() {
 
 function stop() {
   running = false;
+  loopId++;
   clearInterval(liveTimer);
   if (track && track.applyConstraints) track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
   if (stream) stream.getTracks().forEach(t => t.stop());
@@ -731,6 +807,7 @@ function renderHistory() {
 }
 
 $('btnStart').addEventListener('click', start);
+$('btnSwitch').addEventListener('click', switchCamera);
 $('btnStop').addEventListener('click', () => { stop(); show('scrStart'); });
 $('btnAgain').addEventListener('click', () => show('scrStart'));
 $('btnSend').addEventListener('click', sendToForm);
