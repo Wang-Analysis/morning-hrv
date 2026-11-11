@@ -1133,9 +1133,9 @@ function dailySeries() {   // one official reading per day, oldest first
   return Object.keys(byDay).sort().map(k => ({ day: k, ln: byDay[k].ln, rmssd: byDay[k].rmssd, hr: byDay[k].hr }));
 }
 // Trend: the average ln RMSSD of the last 7 calendar days (at least 3 readings) is compared with the
-// usual range: mean +/- 0.5 SD of the official days BEFORE those 7 days, going back up to 60 days.
+// usual range: mean +/- 0.75 SD of the official days BEFORE those 7 days, going back up to 60 days.
 // No judgment while learning: the usual range needs 14 days, so about 21 mornings in all.
-const BASE_MIN_DAYS = 14, BASE_SPAN_DAYS = 60, ROLL_DAYS = 7, ROLL_MIN = 3;
+const BASE_MIN_DAYS = 14, BASE_SPAN_DAYS = 60, ROLL_DAYS = 7, ROLL_MIN = 3, RANGE_SD = 0.75;
 function trendState(s) {
   const cur = s[s.length - 1], from = dayShift(cur.day, -(ROLL_DAYS - 1)), baseFrom = dayShift(from, -BASE_SPAN_DAYS);
   const base = s.filter(x => x.day < from && x.day >= baseFrom);
@@ -1144,7 +1144,7 @@ function trendState(s) {
   if (st.need) return st;
   const ls = base.map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
   const sd = Math.sqrt(ls.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, ls.length - 1));
-  const half = Math.max(0.5 * sd, 0.04);
+  const half = Math.max(RANGE_SD * sd, 0.04);
   st.low = m - half; st.high = m + half;
   // Early "watch" note: readings on 4 days in a row, HRV lower each day, resting HR higher each day, and today below the usual range.
   const l4 = s.slice(-4);
