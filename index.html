@@ -219,6 +219,7 @@ details>summary::-webkit-details-marker{display:none}
     <div class="card stack" id="trendCard" hidden>
       <div class="label" data-i="trendTitle"></div>
       <div class="msg" id="trendMsg"></div>
+      <div class="msg low" id="watchMsg" hidden></div>
       <canvas id="trendChart" height="150"></canvas>
       <div class="note" id="trendNote"></div>
     </div>
@@ -524,7 +525,8 @@ const I18N = {
     result: 'Result', restingHr: 'Resting HR', good: 'Good signal', ok: 'Acceptable', poor: 'Poor signal', notSaved: 'Not saved',
     detail: 'ln RMSSD {ln} · {v} of {t} beats used ({q}%) · {s} s',
     trendTitle: 'Your last 7 days (RMSSD)',
-    trendNeed: 'Measure on {n} more morning(s) to see how your week compares with your usual.',
+    trendNeed: 'Still learning your usual. Measure on {n} more morning(s) to see how your week compares.',
+    trendWatch: 'Your HRV has been falling and your resting heart rate rising over the last 4 days. Tell your coach how you feel.',
     trendSparse: 'Too few morning readings in the last 7 days to compare with your usual. Measure every morning.',
     trendNormal: 'Your 7-day average is close to your usual. Recovery looks normal.',
     trendLow: 'Your 7-day average is lower than your usual. Your body may need more recovery. Tell your coach how you feel.',
@@ -578,7 +580,8 @@ const I18N = {
     result: 'परिणाम', restingHr: 'आराम की हृदय गति', good: 'अच्छा सिग्नल', ok: 'ठीक-ठाक', poor: 'कमज़ोर सिग्नल', notSaved: 'सेव नहीं हुआ',
     detail: 'ln RMSSD {ln} · {t} में से {v} धड़कनें इस्तेमाल हुईं ({q}%) · {s} सेकंड',
     trendTitle: 'आपके पिछले 7 दिन (RMSSD)',
-    trendNeed: 'अपने हफ़्ते की तुलना आपके सामान्य से देखने के लिए {n} और सुबह मापें।',
+    trendNeed: 'ऐप अभी आपका सामान्य स्तर सीख रहा है। अपने हफ़्ते की तुलना देखने के लिए {n} और सुबह मापें।',
+    trendWatch: 'पिछले 4 दिनों से आपका HRV लगातार घट रहा है और आराम की हृदय गति लगातार बढ़ रही है। अपने कोच को बताएँ कि आप कैसा महसूस कर रहे हैं।',
     trendSparse: 'पिछले 7 दिनों में सुबह के माप बहुत कम हैं, इसलिए सामान्य से तुलना नहीं हो सकती। रोज़ सुबह मापें।',
     trendNormal: 'आपका 7 दिन का औसत आपके सामान्य के करीब है। रिकवरी सामान्य लगती है।',
     trendLow: 'आपका 7 दिन का औसत आपके सामान्य से कम है। शरीर को और आराम की ज़रूरत हो सकती है। अपने कोच को बताएँ कि आप कैसा महसूस कर रहे हैं।',
@@ -1077,7 +1080,7 @@ function loadHistory() {
 function saveHistory(r) {
   const h = loadHistory();
   h.unshift({ when: r.when.toISOString(), hr: Math.round(r.hr), rmssd: +r.rmssd.toFixed(1), ln: +r.lnRmssd.toFixed(3), q: r.grade, dur: Math.round(r.duration) });
-  lsSet(HKEY(), JSON.stringify(h.slice(0, 90)));
+  lsSet(HKEY(), JSON.stringify(h.slice(0, 200)));   // enough for the 60-day usual range plus practice readings
   renderHistory();
 }
 function dayKey(d) { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
@@ -1127,20 +1130,26 @@ function renderHistory() {
 }
 function dailySeries() {   // one official reading per day, oldest first
   const byDay = officialByDay(loadHistory().filter(x => x.ln));
-  return Object.keys(byDay).sort().map(k => ({ day: k, ln: byDay[k].ln, rmssd: byDay[k].rmssd }));
+  return Object.keys(byDay).sort().map(k => ({ day: k, ln: byDay[k].ln, rmssd: byDay[k].rmssd, hr: byDay[k].hr }));
 }
-// Trend: the average ln RMSSD of the last 7 calendar days is compared with the usual range
-// (mean +/- 0.5 SD of up to 30 official days). No judgment before 7 official days exist,
-// or when fewer than 4 of the last 7 days have a reading.
-const TREND_MIN_DAYS = 7, TREND_BASE_DAYS = 30, ROLL_DAYS = 7, ROLL_MIN = 4;
+// Trend: the average ln RMSSD of the last 7 calendar days (at least 3 readings) is compared with the
+// usual range: mean +/- 0.5 SD of the official days BEFORE those 7 days, going back up to 60 days.
+// No judgment while learning: the usual range needs 14 days, so about 21 mornings in all.
+const BASE_MIN_DAYS = 14, BASE_SPAN_DAYS = 60, ROLL_DAYS = 7, ROLL_MIN = 3;
 function trendState(s) {
-  const cur = s[s.length - 1], from = dayShift(cur.day, -(ROLL_DAYS - 1));
-  const st = { week: s.filter(x => x.day >= from), need: Math.max(0, TREND_MIN_DAYS - s.length), sparse: false, low: null, high: null, avg: null, status: null };
+  const cur = s[s.length - 1], from = dayShift(cur.day, -(ROLL_DAYS - 1)), baseFrom = dayShift(from, -BASE_SPAN_DAYS);
+  const base = s.filter(x => x.day < from && x.day >= baseFrom);
+  const st = { week: s.filter(x => x.day >= from), sparse: false, low: null, high: null, avg: null, status: null, watch: false,
+    need: Math.max(0, BASE_MIN_DAYS + ROLL_DAYS - s.length, BASE_MIN_DAYS - base.length) };
   if (st.need) return st;
-  const ls = s.slice(-TREND_BASE_DAYS).map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
+  const ls = base.map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
   const sd = Math.sqrt(ls.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, ls.length - 1));
   const half = Math.max(0.5 * sd, 0.04);
   st.low = m - half; st.high = m + half;
+  // Early "watch" note: readings on 4 days in a row, HRV lower each day, resting HR higher each day, and today below the usual range.
+  const l4 = s.slice(-4);
+  st.watch = l4.length === 4 && l4.every((x, i) => x.day === dayShift(cur.day, i - 3)) && cur.ln < st.low &&
+    l4.every((x, i) => !i || (x.ln < l4[i - 1].ln && x.hr > l4[i - 1].hr));
   if (st.week.length < ROLL_MIN) { st.sparse = true; return st; }
   st.avg = st.week.reduce((a, x) => a + x.ln, 0) / st.week.length;
   st.status = st.avg < st.low ? 'low' : st.avg > st.high ? 'high' : 'normal';
@@ -1155,6 +1164,7 @@ function drawTrend() {
   else if (st.sparse) { msg.className = 'msg info'; msg.textContent = t('trendSparse'); }
   else { msg.className = 'msg ' + st.status; msg.textContent = t({ low: 'trendLow', high: 'trendHigh', normal: 'trendNormal' }[st.status]); }
   $('trendNote').textContent = st.status ? t('trendNote') : '';
+  $('watchMsg').hidden = !st.watch; $('watchMsg').textContent = st.watch ? t('trendWatch') : '';
 
   const pts = st.week;
   const { g, W, H, css } = chartCtx('trendChart');
