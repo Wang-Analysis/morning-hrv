@@ -131,6 +131,7 @@ details>summary::-webkit-details-marker{display:none}
     </div>
     <div class="warnbox" id="noSend" hidden data-i="noSend"></div>
     <div class="warnbox" id="notSupported" hidden data-i="notSupported"></div>
+    <div class="warnbox" id="winNote" hidden></div>
     <button class="primary" id="btnStart" type="button" data-i="start"></button>
     <div class="note center" id="durShow" style="display:flex;justify-content:center"></div>
 
@@ -166,7 +167,7 @@ details>summary::-webkit-details-marker{display:none}
       <summary data-i="history"></summary>
       <div class="tablewrap" style="margin-top:10px"><table id="histTable"></table></div>
     </details>
-    <div class="ver" id="ver">App version 0.7.1</div>
+    <div class="ver" id="ver">App version 0.8.0</div>
   </section>
 
   <!-- MEASURING SCREEN -->
@@ -214,6 +215,7 @@ details>summary::-webkit-details-marker{display:none}
       <div class="note" id="rDetail"></div>
     </div>
     <div class="warnbox" id="poorMsg" hidden data-i="poorMsg"></div>
+    <div class="warnbox" id="kindMsg" hidden></div>
     <div class="card stack" id="trendCard" hidden>
       <div class="label" data-i="trendTitle"></div>
       <div class="msg" id="trendMsg"></div>
@@ -480,7 +482,7 @@ const PPG = (() => {
 
 <script>
 /* ================= App ================= */
-const VERSION = '0.7.1';
+const VERSION = '0.8.0';
 const $ = id => document.getElementById(id);
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
@@ -522,11 +524,17 @@ const I18N = {
     result: 'Result', restingHr: 'Resting HR', good: 'Good signal', ok: 'Acceptable', poor: 'Poor signal', notSaved: 'Not saved',
     detail: 'ln RMSSD {ln} · {v} of {t} beats used ({q}%) · {s} s',
     trendTitle: 'Your last 7 days (RMSSD)',
-    trendNeed: 'Measure on {n} more day(s) to see how today compares with your usual.',
-    trendNormal: 'Today is close to your usual. Recovery looks normal.',
-    trendLow: 'Today is lower than your usual. Your body may need more recovery. Tell your coach how you feel.',
-    trendHigh: 'Today is higher than your usual. This is usually a good sign of recovery.',
-    trendNote: 'Shaded band = your usual range. Big dot = today.',
+    trendNeed: 'Measure on {n} more morning(s) to see how your week compares with your usual.',
+    trendSparse: 'Too few morning readings in the last 7 days to compare with your usual. Measure every morning.',
+    trendNormal: 'Your 7-day average is close to your usual. Recovery looks normal.',
+    trendLow: 'Your 7-day average is lower than your usual. Your body may need more recovery. Tell your coach how you feel.',
+    trendHigh: 'Your 7-day average is higher than your usual. This is usually a good sign of recovery.',
+    trendNote: 'Shaded band = your usual range. Dashed line = your 7-day average. Big dot = today.',
+    practiceMsg: 'Practice reading. Only a reading taken between 4:00 and 8:00 in the morning counts as your daily HRV. This one is not sent to your wellness form and is not in your trend.',
+    repeatMsg: 'Repeat reading. Your first reading this morning is already your daily HRV. This one is not sent to your wellness form and is not in your trend.',
+    winNoteOut: 'It is outside 4:00 to 8:00 in the morning. You can measure now, but it will be a practice reading only.',
+    winNoteDone: 'Your daily HRV for today is already saved. Another reading now will be a repeat only.',
+    tagPractice: 'practice', tagRepeat: 'repeat',
     pulseTitle: 'Pulse wave · last 10 seconds', hrTitle: 'Heart rate during the measurement',
     hrNote: 'Average {a} bpm (dashed line) · lowest {lo} · highest {hi} bpm. Rising and falling with your breathing is normal.',
     poorMsg: 'The signal was not clean enough. Please measure again: lie still and touch the camera lightly.',
@@ -570,11 +578,17 @@ const I18N = {
     result: 'परिणाम', restingHr: 'आराम की हृदय गति', good: 'अच्छा सिग्नल', ok: 'ठीक-ठाक', poor: 'कमज़ोर सिग्नल', notSaved: 'सेव नहीं हुआ',
     detail: 'ln RMSSD {ln} · {t} में से {v} धड़कनें इस्तेमाल हुईं ({q}%) · {s} सेकंड',
     trendTitle: 'आपके पिछले 7 दिन (RMSSD)',
-    trendNeed: 'आज की तुलना आपके सामान्य से देखने के लिए {n} और दिन मापें।',
-    trendNormal: 'आज का मान आपके सामान्य के करीब है। रिकवरी सामान्य लगती है।',
-    trendLow: 'आज का मान आपके सामान्य से कम है। शरीर को और आराम की ज़रूरत हो सकती है। अपने कोच को बताएँ कि आप कैसा महसूस कर रहे हैं।',
-    trendHigh: 'आज का मान आपके सामान्य से ज़्यादा है। आमतौर पर यह अच्छी रिकवरी का संकेत है।',
-    trendNote: 'छायांकित पट्टी = आपकी सामान्य सीमा। बड़ा बिंदु = आज।',
+    trendNeed: 'अपने हफ़्ते की तुलना आपके सामान्य से देखने के लिए {n} और सुबह मापें।',
+    trendSparse: 'पिछले 7 दिनों में सुबह के माप बहुत कम हैं, इसलिए सामान्य से तुलना नहीं हो सकती। रोज़ सुबह मापें।',
+    trendNormal: 'आपका 7 दिन का औसत आपके सामान्य के करीब है। रिकवरी सामान्य लगती है।',
+    trendLow: 'आपका 7 दिन का औसत आपके सामान्य से कम है। शरीर को और आराम की ज़रूरत हो सकती है। अपने कोच को बताएँ कि आप कैसा महसूस कर रहे हैं।',
+    trendHigh: 'आपका 7 दिन का औसत आपके सामान्य से ज़्यादा है। आमतौर पर यह अच्छी रिकवरी का संकेत है।',
+    trendNote: 'छायांकित पट्टी = आपकी सामान्य सीमा। डैश वाली लाइन = आपका 7 दिन का औसत। बड़ा बिंदु = आज।',
+    practiceMsg: 'अभ्यास माप। केवल सुबह 4:00 से 8:00 बजे के बीच लिया गया माप ही आपका रोज़ का HRV गिना जाता है। यह माप वेलनेस फ़ॉर्म में नहीं भेजा जाएगा और आपके ट्रेंड में नहीं जुड़ेगा।',
+    repeatMsg: 'दोहराया गया माप। आज सुबह का आपका पहला माप ही आपका रोज़ का HRV है। यह माप वेलनेस फ़ॉर्म में नहीं भेजा जाएगा और आपके ट्रेंड में नहीं जुड़ेगा।',
+    winNoteOut: 'अभी सुबह 4:00 से 8:00 बजे के बीच का समय नहीं है। आप अभी माप सकते हैं, लेकिन यह केवल अभ्यास माप होगा।',
+    winNoteDone: 'आज का आपका रोज़ का HRV पहले ही सेव हो चुका है। अभी का माप केवल दोहराया गया माप होगा।',
+    tagPractice: 'अभ्यास', tagRepeat: 'दोहराया',
     pulseTitle: 'पल्स तरंग · आखिरी 10 सेकंड', hrTitle: 'माप के दौरान हृदय गति',
     hrNote: 'औसत {a} bpm (डैश वाली लाइन) · न्यूनतम {lo} · अधिकतम {hi} bpm। साँस के साथ ऊपर-नीचे होना सामान्य है।',
     poorMsg: 'सिग्नल साफ़ नहीं था। कृपया दोबारा मापें: स्थिर लेटें और कैमरे को हल्के से छुएँ।',
@@ -621,6 +635,7 @@ function applyLang() {
   $('profileRow').hidden = !NAME;
   $('profileTxt').textContent = t('profileIs', { n: NAME });
   renderHistory();
+  refreshWinNote();
   if (lastResult && !$('scrResult').hidden) renderResult(lastResult);
 }
 const PRESETS = [30, 60, 120, 180], MIN_S = 30, MAX_S = 1800;
@@ -647,7 +662,7 @@ function setDur(d, isCustom) {
   $('durShow').textContent = t('durShow', { d: durLabel(d) });
 }
 
-function show(id) { ['scrStart', 'scrMeasure', 'scrResult'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); }
+function show(id) { ['scrStart', 'scrMeasure', 'scrResult'].forEach(s => $(s).hidden = s !== id); if (id === 'scrStart') refreshWinNote(); window.scrollTo(0, 0); }
 function fmt(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function setRing(frac, color) {
   const bar = $('ringBar');
@@ -936,7 +951,7 @@ function showError(msg) {
   $('qBadge').className = 'badge poor'; $('qBadge').textContent = t('notSaved');
   $('rHr').textContent = '--'; $('rRm').textContent = '--';
   $('rDetail').textContent = msg;
-  $('poorMsg').hidden = false; $('btnSend').hidden = true; $('btnSendAnyway').hidden = true;
+  $('poorMsg').hidden = false; $('kindMsg').hidden = true; $('btnSend').hidden = true; $('btnSendAnyway').hidden = true;
   $('trendCard').hidden = true; $('chartCard').hidden = true;
   $('rDebug').textContent = '';
   drawTacho([]);
@@ -956,6 +971,9 @@ function finish() {
   lastResult = res;
   if (res.grade === 'poor') cue.fail(); else cue.done();
   saveHistory(res);
+  const hist = loadHistory();
+  res.kind = readingKind({ when: res.when.toISOString(), q: res.grade }, hist);
+  res.officialToday = !!officialByDay(hist)[dayKey(res.when)];
   renderResult(res);
 }
 
@@ -967,16 +985,19 @@ function renderResult(res) {
   $('rDetail').textContent = t('detail', { ln: res.lnRmssd.toFixed(2), v: res.valid, t: res.total, q: Math.round(res.quality * 100), s: Math.round(res.duration) });
   $('rDebug').textContent = 'v' + VERSION + ' · fps ' + res.fps.toFixed(1) + ' · channel ' + res.channel + ' · SDNN ' + res.sdnn.toFixed(1) +
     ' ms · movements ' + res.moves + ' · period ' + res.periodS.toFixed(2) + ' s';
-  const poor = res.grade === 'poor';
+  const poor = res.grade === 'poor', kind = res.kind || 'official';
+  const counted = kind === 'official' || kind === 'repeat';   // today has an official reading, so the trend can be shown
   $('poorMsg').hidden = !poor;
-  $('btnSend').hidden = !FORM_URL || poor;
-  $('btnSendAnyway').hidden = !FORM_URL || !poor;
+  $('kindMsg').hidden = !(kind === 'practice' || kind === 'repeat');
+  $('kindMsg').textContent = kind === 'practice' ? t('practiceMsg') : kind === 'repeat' ? t('repeatMsg') : '';
+  $('btnSend').hidden = !canSend(res) || poor;
+  $('btnSendAnyway').hidden = !canSend(res) || !poor;
   $('chartCard').hidden = false;
-  $('trendCard').hidden = poor;
+  $('trendCard').hidden = !counted;
   drawTacho(res.intervals);
   drawPulse(res);
   drawHr(res);
-  if (!poor) drawTrend();
+  if (counted) drawTrend();
 }
 
 /* ---- Charts ---- */
@@ -1059,43 +1080,83 @@ function saveHistory(r) {
   lsSet(HKEY(), JSON.stringify(h.slice(0, 90)));
   renderHistory();
 }
+function dayKey(d) { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+function dayShift(key, n) { const d = new Date(key + 'T12:00:00'); d.setDate(d.getDate() + n); return dayKey(d); }
+
+/* ---- Morning window: only a reading between 4:00 and 8:00 (phone clock) counts as the day's HRV ---- */
+const WIN_START_H = 4, WIN_END_H = 8;
+function inWindow(d) { const h = new Date(d).getHours(); return h >= WIN_START_H && h < WIN_END_H; }
+// The official reading of a day is the first good or acceptable reading inside the window.
+// A later reading replaces it only when the earlier ones were poor.
+function officialByDay(h) {
+  const byDay = {};
+  h.filter(x => x.q !== 'poor' && inWindow(x.when)).slice().sort((a, b) => new Date(a.when) - new Date(b.when))
+    .forEach(x => { const k = dayKey(x.when); if (!byDay[k]) byDay[k] = x; });
+  return byDay;
+}
+function readingKind(x, h) {   // 'official' | 'repeat' | 'practice' (outside the window) | 'poor' (inside the window)
+  if (!inWindow(x.when)) return 'practice';
+  if (x.q === 'poor') return 'poor';
+  const o = officialByDay(h)[dayKey(x.when)];
+  return !o || o.when === x.when ? 'official' : 'repeat';
+}
+// Only the official reading goes to the wellness form. A poor reading inside the window may still be
+// sent with "Send anyway", as before, but not once the day already has an official reading.
+function canSend(r) {
+  if (!r || !FORM_URL) return false;
+  const kind = r.kind || 'official';
+  return kind === 'official' || (kind === 'poor' && !r.officialToday);
+}
+function refreshWinNote() {
+  const now = new Date(), el = $('winNote');
+  const key = !inWindow(now) ? 'winNoteOut' : officialByDay(loadHistory())[dayKey(now)] ? 'winNoteDone' : '';
+  el.hidden = !key; el.textContent = key ? t(key) : '';
+}
+
 function renderHistory() {
   const h = loadHistory();
   $('histBox').hidden = !h.length;
   const q = { good: t('good'), ok: t('ok'), poor: t('poor') };
+  const tag = { practice: t('tagPractice'), repeat: t('tagRepeat') };
   $('histTable').innerHTML = '<tr><th>' + t('thDate') + '</th><th>HR</th><th>RMSSD</th><th>' + t('thSignal') + '</th></tr>' +
     h.slice(0, 30).map(x => {
-      const d = new Date(x.when);
+      const d = new Date(x.when), k = tag[readingKind(x, h)];
       return '<tr><td>' + d.toLocaleDateString(LOCALE(), { day: '2-digit', month: 'short' }) + ' ' +
-        d.toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + x.hr + '</td><td>' + x.rmssd + '</td><td>' + (q[x.q] || x.q) + '</td></tr>';
+        d.toLocaleTimeString(LOCALE(), { hour: '2-digit', minute: '2-digit' }) + '</td><td>' + x.hr + '</td><td>' + x.rmssd + '</td><td>' + (q[x.q] || x.q) + (k ? ' · ' + k : '') + '</td></tr>';
     }).join('');
 }
-function dayKey(d) { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
-function dailySeries() {
-  const byDay = {};
-  loadHistory().filter(x => x.q !== 'poor' && x.ln).slice().reverse().forEach(x => { byDay[dayKey(x.when)] = x; }); // latest reading per day
+function dailySeries() {   // one official reading per day, oldest first
+  const byDay = officialByDay(loadHistory().filter(x => x.ln));
   return Object.keys(byDay).sort().map(k => ({ day: k, ln: byDay[k].ln, rmssd: byDay[k].rmssd }));
+}
+// Trend: the average ln RMSSD of the last 7 calendar days is compared with the usual range
+// (mean +/- 0.5 SD of up to 30 official days). No judgment before 7 official days exist,
+// or when fewer than 4 of the last 7 days have a reading.
+const TREND_MIN_DAYS = 7, TREND_BASE_DAYS = 30, ROLL_DAYS = 7, ROLL_MIN = 4;
+function trendState(s) {
+  const cur = s[s.length - 1], from = dayShift(cur.day, -(ROLL_DAYS - 1));
+  const st = { week: s.filter(x => x.day >= from), need: Math.max(0, TREND_MIN_DAYS - s.length), sparse: false, low: null, high: null, avg: null, status: null };
+  if (st.need) return st;
+  const ls = s.slice(-TREND_BASE_DAYS).map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
+  const sd = Math.sqrt(ls.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, ls.length - 1));
+  const half = Math.max(0.5 * sd, 0.04);
+  st.low = m - half; st.high = m + half;
+  if (st.week.length < ROLL_MIN) { st.sparse = true; return st; }
+  st.avg = st.week.reduce((a, x) => a + x.ln, 0) / st.week.length;
+  st.status = st.avg < st.low ? 'low' : st.avg > st.high ? 'high' : 'normal';
+  return st;
 }
 function drawTrend() {
   const s = dailySeries();
   if (!s.length) { $('trendCard').hidden = true; return; }
-  const cur = s[s.length - 1];
-  const prev = s.slice(0, -1).slice(-30);
-  const need = Math.max(0, 3 - prev.length);
-  let low = null, high = null, status = null;
-  if (!need) {
-    const ls = prev.map(x => x.ln), m = ls.reduce((a, b) => a + b, 0) / ls.length;
-    const sd = Math.sqrt(ls.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, ls.length - 1));
-    const half = Math.max(0.5 * sd, 0.04);
-    low = m - half; high = m + half;
-    status = cur.ln < low ? 'low' : cur.ln > high ? 'high' : 'normal';
-  }
+  const st = trendState(s), low = st.low, high = st.high;
   const msg = $('trendMsg');
-  if (need) { msg.className = 'msg info'; msg.textContent = t('trendNeed', { n: need }); }
-  else { msg.className = 'msg ' + status; msg.textContent = t({ low: 'trendLow', high: 'trendHigh', normal: 'trendNormal' }[status]); }
-  $('trendNote').textContent = need ? '' : t('trendNote');
+  if (st.need) { msg.className = 'msg info'; msg.textContent = t('trendNeed', { n: st.need }); }
+  else if (st.sparse) { msg.className = 'msg info'; msg.textContent = t('trendSparse'); }
+  else { msg.className = 'msg ' + st.status; msg.textContent = t({ low: 'trendLow', high: 'trendHigh', normal: 'trendNormal' }[st.status]); }
+  $('trendNote').textContent = st.status ? t('trendNote') : '';
 
-  const pts = s.slice(-7);
+  const pts = st.week;
   const { g, W, H, css } = chartCtx('trendChart');
   const vals = pts.map(p => p.rmssd).concat(low !== null ? [Math.exp(low), Math.exp(high)] : []);
   let lo = Math.min(...vals), hi = Math.max(...vals);
@@ -1110,6 +1171,10 @@ function drawTrend() {
   }
   g.fillStyle = css.getPropertyValue('--muted');
   g.fillText(Math.round(hi) + ' ms', 4, T + 16); g.fillText(Math.round(lo) + ' ms', 4, H - B);
+  if (st.avg !== null) {
+    g.setLineDash([10, 8]); g.strokeStyle = css.getPropertyValue('--muted'); g.lineWidth = 3;
+    g.beginPath(); g.moveTo(L, Y(Math.exp(st.avg))); g.lineTo(W - R, Y(Math.exp(st.avg))); g.stroke(); g.setLineDash([]);
+  }
   g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 4; g.lineJoin = 'round';
   g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(X(i), Y(p.rmssd)) : g.moveTo(X(i), Y(p.rmssd))); g.stroke();
   pts.forEach((p, i) => {
@@ -1124,7 +1189,7 @@ function drawTrend() {
 
 /* ---- Results out ---- */
 function sendToForm() {
-  if (!lastResult || !FORM_URL) return;
+  if (!canSend(lastResult)) return;
   location.href = FORM_URL.replace('HRVRMSSD', lastResult.rmssd.toFixed(1)).replace('HRVRHR', String(Math.round(lastResult.hr)));
 }
 function resultText(r) {
@@ -1189,7 +1254,7 @@ let verTaps = 0;
 $('ver').addEventListener('click', () => {   // tap the version 5 times to show technical details while measuring
   if (++verTaps >= 5) { verTaps = 0; DEBUG = !DEBUG; lsSet('hrvDebug', DEBUG ? '1' : ''); $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : ''); }
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden && running) { stop(); show('scrStart'); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && running) { stop(); show('scrStart'); } else if (!document.hidden) refreshWinNote(); });
 $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : '');
 if (durS === 0) $('cOpen').checked = true;
 else if (!PRESETS.includes(durS)) { $('cMin').value = Math.floor(durS / 60); $('cSec').value = durS % 60; }
