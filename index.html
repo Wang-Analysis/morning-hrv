@@ -138,6 +138,7 @@ details>summary::-webkit-details-marker{display:none}
     <details class="card" id="setBox">
       <summary data-i="settings"></summary>
       <div class="stack" style="margin-top:14px">
+        <div class="stack coachOnly" hidden>
         <div class="label" data-i="length"></div>
         <div class="seg" id="durSeg">
           <button data-d="30" data-i="s30"></button>
@@ -155,19 +156,20 @@ details>summary::-webkit-details-marker{display:none}
           <div class="note" data-i="customHint"></div>
         </div>
         <div class="note" data-i="durNote"></div>
+        </div>
         <label class="lbl"><input type="checkbox" id="sound" checked> <span data-i="sound"></span></label>
         <div class="row"><button class="small" id="btnTestCue" type="button" data-i="testCue"></button><span class="note" id="cueMsg"></span></div>
-        <label class="lbl"><input type="checkbox" id="lockExp"> <span data-i="lockExp"></span></label>
+        <label class="lbl coachOnly" hidden><input type="checkbox" id="lockExp"> <span data-i="lockExp"></span></label>
         <div class="row"><button class="small" id="btnResetCam" type="button" data-i="resetCam"></button><span class="note" id="camMsg"></span></div>
         <div class="note" id="installHow" data-i="installHow"></div>
-        <div class="row" id="profileRow" hidden><span class="note" id="profileTxt"></span><button class="small" id="btnForget" type="button" data-i="forget"></button></div>
+        <div class="coachOnly" hidden><div class="row" id="profileRow" hidden><span class="note" id="profileTxt"></span><button class="small" id="btnForget" type="button" data-i="forget"></button></div></div>
       </div>
     </details>
     <details class="card" id="histBox">
       <summary data-i="history"></summary>
       <div class="tablewrap" style="margin-top:10px"><table id="histTable"></table></div>
     </details>
-    <div class="ver" id="ver">App version 0.8.0</div>
+    <div class="ver" id="ver">App version 0.9.0</div>
   </section>
 
   <!-- MEASURING SCREEN -->
@@ -240,6 +242,7 @@ details>summary::-webkit-details-marker{display:none}
         <div class="note" data-i="tachoNote"></div>
         <button id="btnCopy" type="button" data-i="copy"></button>
         <button id="btnCsv" type="button" data-i="csv"></button>
+        <button id="btnRaw" type="button" hidden data-i="rawCsv"></button>
         <div class="debug" id="rDebug"></div>
       </div>
     </details>
@@ -483,7 +486,7 @@ const PPG = (() => {
 
 <script>
 /* ================= App ================= */
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 const $ = id => document.getElementById(id);
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
@@ -542,7 +545,7 @@ const I18N = {
     poorMsg: 'The signal was not clean enough. Please measure again: lie still and touch the camera lightly.',
     send: 'Continue to wellness form', again: 'Measure again', sendAnyway: 'Send anyway',
     checkData: 'Data for checking (coach / physiologist)', tachoNote: 'Beat-to-beat intervals. Grey dots were rejected as noise.',
-    copy: 'Copy result', copied: 'Copied', csv: 'Download beat intervals (CSV)',
+    copy: 'Copy result', copied: 'Copied', csv: 'Download beat intervals (CSV)', rawCsv: 'Download raw camera signal (CSV)',
     'Too few camera frames': 'Too few camera frames.', 'Recording too short': 'Recording too short.',
     'No clear pulse found': 'No clear pulse found.', 'Not enough clean beats': 'Not enough clean beats.'
   },
@@ -597,7 +600,7 @@ const I18N = {
     poorMsg: 'सिग्नल साफ़ नहीं था। कृपया दोबारा मापें: स्थिर लेटें और कैमरे को हल्के से छुएँ।',
     send: 'वेलनेस फ़ॉर्म पर जाएँ', again: 'दोबारा मापें', sendAnyway: 'फिर भी भेजें',
     checkData: 'जाँच के लिए डेटा (कोच / फ़िज़ियोलॉजिस्ट)', tachoNote: 'धड़कन-से-धड़कन अंतराल। धूसर बिंदु शोर मानकर हटाए गए।',
-    copy: 'परिणाम कॉपी करें', copied: 'कॉपी हो गया', csv: 'धड़कन अंतराल डाउनलोड करें (CSV)',
+    copy: 'परिणाम कॉपी करें', copied: 'कॉपी हो गया', csv: 'धड़कन अंतराल डाउनलोड करें (CSV)', rawCsv: 'कैमरे का कच्चा सिग्नल डाउनलोड करें (CSV)',
     'Too few camera frames': 'कैमरे से बहुत कम फ़्रेम मिले।', 'Recording too short': 'रिकॉर्डिंग बहुत छोटी थी।',
     'No clear pulse found': 'साफ़ पल्स नहीं मिली।', 'Not enough clean beats': 'पर्याप्त साफ़ धड़कनें नहीं मिलीं।'
   }
@@ -623,7 +626,7 @@ let durS = Number(lsGet('hrvDur', '60')); if (!isFinite(durS)) durS = 60;
 let stream = null, track = null, running = false, wakeLock = null;
 let frames = null, phase = 'idle', phaseStart = 0, fingerLostAt = 0, lostTotal = 0, recordStartIdx = 0;
 let camList = [], camIdx = 0, loopId = 0, switching = false, camOpenedAt = 0, lastFingerAt = 0, signalOk = false;
-let lastMediaTime = -1, lastResult = null, liveTimer = null, moveEvents = 0, prevR = null;
+let lastMediaTime = -1, lastResult = null, lastRaw = null, liveTimer = null, moveEvents = 0, prevR = null;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 canvas.width = 40; canvas.height = 30;
@@ -950,7 +953,7 @@ function stop() {
 function showError(msg) {
   cue.fail();
   show('scrResult');
-  lastResult = null;
+  lastResult = null; lastRaw = null; showRawBtn();
   $('qBadge').className = 'badge poor'; $('qBadge').textContent = t('notSaved');
   $('rHr').textContent = '--'; $('rRm').textContent = '--';
   $('rDetail').textContent = msg;
@@ -964,12 +967,15 @@ function finish() {
   const tSlice = frames.t.slice(recordStartIdx);
   const resR = PPG.analyze(tSlice, frames.r.slice(recordStartIdx));
   const resG = PPG.analyze(tSlice, frames.g.slice(recordStartIdx));
+  const raw = captureRaw();
   stop();
   const score = r => (!r || r.error) ? -1 : r.quality * 1000 + r.valid;
   const res = score(resG) > score(resR) ? Object.assign(resG, { channel: 'green' }) : Object.assign(resR, { channel: 'red' });
-  if (res.error) { showError(t(res.error) + ' ' + t('tryAgain')); return; }
+  if (res.error) { showError(t(res.error) + ' ' + t('tryAgain')); raw.result = 'error: ' + res.error; lastRaw = raw; showRawBtn(); return; }
   res.grade = PPG.grade(res);
   res.when = new Date();
+  raw.result = 'channel ' + res.channel + ', grade ' + res.grade + ', HR ' + res.hr.toFixed(1) + ' bpm, RMSSD ' + res.rmssd.toFixed(1) + ' ms, ' + res.valid + ' of ' + res.total + ' beats';
+  lastRaw = raw;
   res.moves = moveEvents;
   lastResult = res;
   if (res.grade === 'poor') cue.fail(); else cue.done();
@@ -996,6 +1002,7 @@ function renderResult(res) {
   $('btnSend').hidden = !canSend(res) || poor;
   $('btnSendAnyway').hidden = !canSend(res) || !poor;
   $('chartCard').hidden = false;
+  showRawBtn();
   $('trendCard').hidden = !counted;
   drawTacho(res.intervals);
   drawPulse(res);
@@ -1216,6 +1223,36 @@ function downloadCsv() {
   document.body.appendChild(a); a.click(); a.remove();
 }
 
+/* ---- Raw camera signal (debug mode): every frame of the measurement, so a recording can be re-analysed later ---- */
+function captureRaw() {
+  let cam = {};
+  try { const st = track && track.getSettings ? track.getSettings() : {}; ['width', 'height', 'frameRate', 'exposureMode', 'whiteBalanceMode', 'focusMode', 'torch'].forEach(k => { if (st[k] !== undefined) cam[k] = st[k]; }); } catch (e) { cam = {}; }
+  return { when: new Date(), t: frames.t.slice(), r: frames.r.slice(), g: frames.g.slice(), b: frames.b.slice(), recordStart: recordStartIdx, fps: estFps(), cam: cam, lockExp: $('lockExp').checked };
+}
+function showRawBtn() { $('btnRaw').hidden = !(DEBUG && lastRaw); }
+function rawCsvText(x) {   // no athlete name or form link is written to this file
+  const n = x.t.length, t0 = n ? x.t[0] : 0, rec = n > x.recordStart ? (x.t[n - 1] - x.t[x.recordStart]) / 1000 : 0;
+  const head = ['# Morning HRV raw camera signal', '# app_version: ' + VERSION, '# recorded_at: ' + x.when.toISOString(),
+    '# frames: ' + n, '# record_start_frame: ' + (x.recordStart + 1), '# record_seconds: ' + rec.toFixed(2),
+    '# mean_fps_record: ' + (rec > 0 ? ((n - 1 - x.recordStart) / rec).toFixed(2) : ''), '# fps_at_end: ' + x.fps.toFixed(2),
+    '# camera: ' + JSON.stringify(x.cam), '# exposure_lock_setting: ' + (x.lockExp ? 'on' : 'off'), '# result: ' + (x.result || ''),
+    '# columns: frame number, time in ms from first frame, mean red/green/blue (0-255) of the 40 x 30 image, phase (0 = getting ready, 1 = recording)',
+    'frame,time_ms,red,green,blue,phase'];
+  const rows = [];
+  for (let i = 0; i < n; i++) rows.push((i + 1) + ',' + (x.t[i] - t0).toFixed(3) + ',' + x.r[i].toFixed(3) + ',' + x.g[i].toFixed(3) + ',' + x.b[i].toFixed(3) + ',' + (i >= x.recordStart ? 1 : 0));
+  return head.concat(rows).join('\n');
+}
+function downloadRaw() {
+  if (!lastRaw) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rawCsvText(lastRaw)], { type: 'text/csv' }));
+  a.download = 'hrv_raw_' + lastRaw.when.toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+/* Settings that change the measurement (recording length, exposure lock, saved athlete) are shown only in debug mode,
+   so athletes cannot change them by accident. Tap the version line 5 times to switch debug mode on or off. */
+function applyCoach() { document.querySelectorAll('.coachOnly').forEach(el => { el.hidden = !DEBUG; }); showRawBtn(); }
+
 /* ---- Install as an app ---- */
 let deferredPrompt = null;
 const standalone = window.matchMedia && matchMedia('(display-mode: standalone)').matches;
@@ -1246,6 +1283,7 @@ $('btnAgain').addEventListener('click', () => show('scrStart'));
 $('btnSend').addEventListener('click', sendToForm);
 $('btnSendAnyway').addEventListener('click', sendToForm);
 $('btnCsv').addEventListener('click', downloadCsv);
+$('btnRaw').addEventListener('click', downloadRaw);
 $('btnCopy').addEventListener('click', () => {
   if (!lastResult) return;
   const txt = resultText(lastResult);
@@ -1262,13 +1300,14 @@ $('btnResetCam').addEventListener('click', () => { lsDel('hrvCam'); $('camMsg').
 $('btnForget').addEventListener('click', () => { lsDel('hrvProfile'); profile = {}; FORM_URL = ''; NAME = ''; $('noSend').hidden = false; applyLang(); });
 let verTaps = 0;
 $('ver').addEventListener('click', () => {   // tap the version 5 times to show technical details while measuring
-  if (++verTaps >= 5) { verTaps = 0; DEBUG = !DEBUG; lsSet('hrvDebug', DEBUG ? '1' : ''); $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : ''); }
+  if (++verTaps >= 5) { verTaps = 0; DEBUG = !DEBUG; lsSet('hrvDebug', DEBUG ? '1' : ''); $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : ''); applyCoach(); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && running) { stop(); show('scrStart'); } else if (!document.hidden) refreshWinNote(); });
 $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : '');
 if (durS === 0) $('cOpen').checked = true;
 else if (!PRESETS.includes(durS)) { $('cMin').value = Math.floor(durS / 60); $('cSec').value = durS % 60; }
 setDur(durS === 0 || (durS >= MIN_S && durS <= MAX_S) ? durS : 60);
+applyCoach();
 applyLang();
 </script>
 </body>
