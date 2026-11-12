@@ -172,7 +172,7 @@ details>summary::-webkit-details-marker{display:none}
       <summary data-i="history"></summary>
       <div class="tablewrap" style="margin-top:10px"><table id="histTable"></table></div>
     </details>
-    <div class="ver" id="ver">App version 0.10.0</div>
+    <div class="ver" id="ver">App version 0.10.1</div>
   </section>
 
   <!-- MEASURING SCREEN -->
@@ -495,7 +495,7 @@ const PPG = (() => {
 
 <script>
 /* ================= App ================= */
-const VERSION = '0.10.0';
+const VERSION = '0.10.1';
 const $ = id => document.getElementById(id);
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
@@ -518,7 +518,7 @@ const I18N = {
     sigTip: 'The pulse is weak. Warm your hand, rest the finger lightly and cover the whole lens.',
     sound: 'Beep and vibrate at start and finish', testCue: 'Test beep & vibration',
     cueSent: 'Vibration sent. If you felt nothing, turn on vibration in phone settings.', cueBlocked: 'The phone blocked vibration.', cueNo: 'This browser cannot vibrate the phone.',
-    lockExp: 'Lock camera exposure, white balance and focus before the test',
+    lockExp: 'Experimental: lock camera exposure, white balance and focus before the test',
     resetCam: 'Choose camera again', camReset: 'Done. The app will search for your finger again.',
     installHow: 'To use it like an app: in Chrome tap ⋮ then "Add to Home screen".',
     install: 'Add Morning HRV to your Home screen to open it like an app.', installBtn: 'Install',
@@ -575,7 +575,7 @@ const I18N = {
     sigTip: 'पल्स कमज़ोर है। हाथ गर्म करें, उंगली हल्के से रखें और पूरा लेंस ढकें।',
     sound: 'शुरू और अंत में बीप और वाइब्रेशन', testCue: 'बीप और वाइब्रेशन जाँचें',
     cueSent: 'वाइब्रेशन भेजा गया। अगर महसूस नहीं हुआ, तो फ़ोन की सेटिंग में वाइब्रेशन चालू करें।', cueBlocked: 'फ़ोन ने वाइब्रेशन रोक दिया।', cueNo: 'यह ब्राउज़र फ़ोन को वाइब्रेट नहीं कर सकता।',
-    lockExp: 'माप से पहले कैमरे का एक्सपोज़र, व्हाइट बैलेंस और फ़ोकस लॉक करें',
+    lockExp: 'प्रयोग: माप से पहले कैमरे का एक्सपोज़र, व्हाइट बैलेंस और फ़ोकस लॉक करें',
     resetCam: 'कैमरा फिर से चुनें', camReset: 'हो गया। ऐप फिर से आपकी उंगली ढूँढेगा।',
     installHow: 'ऐप की तरह इस्तेमाल करने के लिए: Chrome में ⋮ दबाएँ, फिर "Add to Home screen" चुनें।',
     install: 'Morning HRV को होम स्क्रीन पर जोड़ें, ताकि यह ऐप की तरह खुले।', installBtn: 'इंस्टॉल करें',
@@ -808,7 +808,9 @@ async function torchOn() {
 /* Camera lock: after 2 s of "Getting ready" the camera's automatic exposure, white balance and focus are frozen at their
    current values, so they cannot drift during the test. If the picture is nearly maxed out, exposure is shortened first.
    The picture is checked 1.5 s later; if it went dark, bright or changed a lot, the camera is put back on automatic.
-   Phones that do not allow manual control simply stay on automatic, as before. */
+   Phones that do not allow manual control simply stay on automatic, as before.
+   EXPERIMENTAL, debug mode only and off by default: on the owner's phone (12 Nov 2026) changing these settings made the
+   picture black out for a moment, the finger was "lost", the lock was abandoned and the test started about 8 s late. */
 function recentMean(ch, ms) {
   const tt = frames.t, n = tt.length; let s = 0, k = 0;
   for (let i = n - 1; i >= 0 && tt[n - 1] - tt[i] <= ms; i--) { s += ch[i]; k++; }
@@ -816,7 +818,7 @@ function recentMean(ch, ms) {
 }
 async function lockCamera() {
   camLock = { state: 'off' };
-  if (!$('lockExp').checked) return;
+  if (!DEBUG || !$('lockExp').checked) return;   // experimental: off for athletes (see note above)
   camLock.state = 'unsupported';
   if (!track || !track.getCapabilities || lockTries >= 2) { if (lockTries >= 2) camLock.state = 'gave up'; return; }
   lockTries++;
@@ -1411,8 +1413,8 @@ $('ver').textContent = 'App version ' + VERSION + (DEBUG ? ' · debug on' : '');
 if (durS === 0) $('cOpen').checked = true;
 else if (!PRESETS.includes(durS)) { $('cMin').value = Math.floor(durS / 60); $('cSec').value = durS % 60; }
 setDur(durS === 0 || (durS >= MIN_S && durS <= MAX_S) ? durS : ATHLETE_S);
-$('lockExp').checked = lsGet('hrvLock', '1') !== '0';
-$('lockExp').addEventListener('change', () => lsSet('hrvLock', $('lockExp').checked ? '1' : '0'));
+$('lockExp').checked = lsGet('hrvLock2', '0') === '1';
+$('lockExp').addEventListener('change', () => lsSet('hrvLock2', $('lockExp').checked ? '1' : '0'));
 applyCoach();
 applyLang();
 </script>
