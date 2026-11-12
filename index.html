@@ -172,7 +172,7 @@ details>summary::-webkit-details-marker{display:none}
       <summary data-i="history"></summary>
       <div class="tablewrap" style="margin-top:10px"><table id="histTable"></table></div>
     </details>
-    <div class="ver" id="ver">App version 0.10.1</div>
+    <div class="ver" id="ver">App version 0.10.2</div>
   </section>
 
   <!-- MEASURING SCREEN -->
@@ -483,7 +483,13 @@ const PPG = (() => {
     if (!r || r.error) return 'poor';
     const expected = r.duration / (r.meanIbi / 1000);
     const coverage = r.valid / Math.max(1, expected);
+    // One disturbed beat removes 2 or 3 neighbouring intervals. In a 30 s test at a slow heart rate that alone is
+    // more than 5%, so a single such event is still "good" as long as at least 85% of intervals are kept.
+    let events = 0;
+    const list = r.intervals || [];
+    for (let i = 0; i < list.length; i++) if (!list[i].valid && (i === 0 || list[i - 1].valid)) events++;
     if (r.quality >= 0.95 && coverage >= 0.85) return 'good';
+    if (events <= 1 && r.quality >= 0.85 && coverage >= 0.8) return 'good';
     if (r.quality >= 0.85 && coverage >= 0.7) return 'ok';
     return 'poor';
   }
@@ -495,7 +501,7 @@ const PPG = (() => {
 
 <script>
 /* ================= App ================= */
-const VERSION = '0.10.1';
+const VERSION = '0.10.2';
 const $ = id => document.getElementById(id);
 function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
